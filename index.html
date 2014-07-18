@@ -1,0 +1,416 @@
+<html>
+<head>
+
+	
+	<!-- Scripts -->
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+	<script src="js/libs/underscore.js"></script>
+	<script src="js/libs/sylvester.js"></script>
+	<script src="js/libs/glUtils.js"></script>
+	<script src="js/libs/three.js"></script>
+	<script src="js/libs/random-0.26-debug.js"></script>
+	<!-- <script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script> -->
+	<!-- <script src="js/main.js"></script> -->
+
+	<!-- Stylesheets -->
+	<!-- <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css"> -->
+	<!-- <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css"> -->
+	<link rel="stylesheet" type="text/css" href="style.css">
+	
+</head>
+<body>
+
+		<canvas id="heightmap">
+			You're browser doesn't support WebGL....lets try a more modern browser?
+		</canvas>
+
+		<canvas id="viewport" tabindex='1'>
+			You're browser doesn't support WebGL....lets try a more modern browser?
+		</canvas>
+
+
+		<script id="shader-vs" type="x-shader/x-vertex">
+			attribute vec3 aVertexPosition;
+			attribute vec3 aVertexSlope;
+
+			uniform mat4 uMVMatrix;
+			uniform mat4 uVMatrix;
+			uniform mat4 uPMatrix;
+
+			// varying float ptSize;
+			varying vec3 pos;
+			varying float depth;
+			varying float distance;
+
+			varying vec2 normal;
+			varying float slope;
+
+			void main(void) {
+				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexPosition, 1.0); 
+				gl_Position = position;
+				pos = aVertexPosition.xyz;
+				depth = aVertexPosition.y/50.0;
+				distance = sqrt(position.x*position.x + position.z*position.z);
+
+				normal = aVertexSlope.xy;
+				slope = aVertexSlope.z;
+			}
+		</script>
+
+		<script id="shader-fs" type="x-shader/x-fragment">
+
+			precision mediump float;
+			uniform sampler2D uSampler0;
+			uniform sampler2D uSampler1;
+			uniform sampler2D uSampler2;
+			uniform sampler2D uSampler3;
+			uniform sampler2D uSampler4;
+			uniform sampler2D uSampler5;
+			uniform vec3 uColor;
+
+			varying vec3 pos;
+			varying float depth;
+			varying float distance;
+
+			varying vec2 normal;
+			varying float slope;
+
+			vec3 applyFog( in vec3  rgb,       // original color of the pixel
+						  in float distance ) // camera to point distance
+			{
+				float b = 0.001;
+				float fogAmount = 1.0 - exp( -distance*b );
+				vec3  fogColor  = vec3(0.5,0.6,0.7);
+				return mix( rgb, fogColor, fogAmount );
+			}
+
+			void main(void) {
+				// gl_FragColor = vec4( 1.0*depth, mod((0.1*pos.x),1.0), mod((0.1*pos.z),1.0), 1.0 );
+				// gl_FragColor = vec4( 1.0*depth, mod((0.1*pos.x),1.0), 1.0, 1.0 );
+				//gl_FragColor = vec4( 1.0*depth, 1.0, 1.0, 1.0 );
+				vec4 tex1 = texture2D(uSampler2, vec2(mod(pos.x*0.01,1.0), mod(pos.z*0.01,1.0)));
+				tex1.b *= depth;
+				vec4 tex2 = texture2D(uSampler1, vec2(mod(pos.x*0.001,1.0), mod(pos.z*0.001,1.0)));
+				vec4 tex3 = texture2D(uSampler0, vec2(mod(pos.x*0.01,1.0), mod(pos.z*0.01,1.0)));
+
+				vec4 tex = tex1 * tex2;
+
+				vec3 lightCol = vec3(0.9, 0.7, 0.1);
+				vec3 light_pos = vec3(-300, 180, -300);
+				vec2 light_norm = normalize(light_pos-pos).xz;
+				float lDotN = max(dot(normalize(normal), -light_norm), 0.0) / 50.0;
+
+
+				tex.rgb += lightCol * lDotN;
+				tex.rgb += tex3.rgb * slope/250.0;
+				tex.rgb *= 0.8;
+
+				// tex.rb = vec2(abs(normal) / 250.0);
+				// tex.g  = abs(slope) / 250.0;
+				tex.a = 0.9;
+
+				tex.rgb = applyFog(tex.rgb, distance);
+				// tex.rgb *= uColor;
+				gl_FragColor = tex;
+
+				// gl_FragColor = texture2D(uSampler, vec2( mod(pos.x*0.01,1.0) , mod(gl_FragCoord.z*0.01,1.0) ));
+				// gl_FragColor = vec4( gl_FragCoord.z*depth, 1.0, 1.0, 1.0 );
+
+
+			}
+		</script>
+
+
+		<script id="skybox-vs" type="x-shader/x-vertex">
+			attribute vec3 aVertexCoord;
+			attribute vec3 aTexCoord;
+
+			uniform mat4 uMVMatrix;
+			uniform mat4 uVMatrix;
+			uniform mat4 uPMatrix;
+
+			varying vec3 texPos;
+			varying float distance;
+
+			void main(void) {
+				vec4 position = uPMatrix * uVMatrix * vec4(aVertexCoord, 1.0); 
+				gl_Position = position;
+
+				distance = sqrt(position.x*position.x + position.z*position.z);
+
+				texPos = aTexCoord.xyz;
+			}
+		</script>
+
+		<script id="skybox-fs" type="x-shader/x-fragment">
+
+			precision mediump float;
+			uniform samplerCube TexSampler;
+
+			varying vec3 texPos;
+			varying float distance;
+
+			vec3 applyFog( in vec3  rgb,       // original color of the pixel
+						  in float distance ) // camera to point distance
+			{
+				float b = 0.10;
+				float fogAmount = 1.0 - 0.4;// exp( -distance*b );
+				vec3  fogColor  = vec3(0.5,0.6,0.7);
+				return mix( rgb, fogColor, fogAmount );
+			}
+
+			void main(void) {
+				vec4 tex;
+
+				tex = textureCube(TexSampler, texPos);
+				// tex.rgb = applyFog(tex.rgb, distance);
+				gl_FragColor = tex;
+			}
+		</script>
+
+
+		<script src="js/viewport.js"></script>
+		<script>
+			$(document).ready(function(){
+				//initWebGL();
+				//draw();
+				generateImage();
+				updateCanvas();
+				initViewport();
+				begin();
+
+				window['world'] = world;
+
+
+				var MOVE_FORWARD  = 1<<0,
+					MOVE_BACKWARD = 1<<1,
+					MOVE_LEFT     = 1<<2,
+					MOVE_RIGHT    = 1<<3,
+					MOVE_UP       = 1<<4,
+					MOVE_DOWN     = 1<<5,
+					MOVE_RUNNING  = 1<<6;
+				var UI = {
+					viewport: {
+						mouse: {
+							position: {x:0,y:0},
+							buttons: 0,
+							target: new THREE.Vector3(0,0,0),
+							phi: 0.0,
+						},
+						move: new THREE.Vector3(0,0,0),
+						isMoving: 0
+					},
+					mouse: {
+						isDown: false,
+						position: {x:0, y:0}
+					},
+					lastWorldUpdate: (new Date()).getTime(),
+				}
+
+				var updateMove = function(){
+					if (UI.viewport.isMoving) {
+
+						var move = UI.viewport.move,
+							movement = UI.viewport.isMoving;
+						move.x = 0; move.y = 0; move.z = 0;
+						if ( movement & MOVE_FORWARD )  move.z += 1;
+						if ( movement & MOVE_BACKWARD ) move.z -= 1;
+						if ( movement & MOVE_LEFT )     move.x -= 1;
+						if ( movement & MOVE_RIGHT )    move.x += 1;
+						if ( movement & MOVE_UP )       move.y -= 1;
+						if ( movement & MOVE_DOWN )     move.y += 1;
+
+						// var qX = new THREE.Quaternion(),
+						// 	qY = new THREE.Quaternion();
+						// qX.setFromAxisAngle( new THREE.Vector3(0,1,0), Objects.camera.phi );
+						// qY.setFromAxisAngle( new THREE.Vector3(1,0,0), -Objects.camera.theta );
+						// qX.multiply(qY);
+						// qX.z *= -1;
+						// move.applyQuaternion(qX);
+
+						// var euler = new THREE.Euler( -Objects.camera.theta, Objects.camera.phi, 0 );
+						// move.applyEuler(euler);
+
+						var qX = new THREE.Quaternion(),
+							qY = new THREE.Quaternion(),
+							qZ = new THREE.Quaternion(),
+							m = new THREE.Matrix4();
+						qX.setFromAxisAngle( new THREE.Vector3(0,1,0), -Objects.camera.phi );
+						qY.setFromAxisAngle( new THREE.Vector3(-1,0,0),-Objects.camera.theta );
+						qZ.setFromAxisAngle( new THREE.Vector3(0,0,1), Objects.camera.lambda );
+						qY.multiply(qX);
+						qY.multiply(qZ);
+						m.makeRotationFromQuaternion(qY);
+						m.getInverse(m);
+						move.applyMatrix4(m);
+						// move.applyQuaternion(qY);
+
+						move.x *= -1;
+						if ( movement & MOVE_RUNNING ) move.multiplyScalar(100);
+						else move.multiplyScalar(10);
+						Objects.camera.position.add(move);
+						updateCamera();
+
+						position.y = Objects.camera.position.z/Settings.scaleXZ;
+						position.x = Objects.camera.position.x/Settings.scaleXZ;
+
+						var time = (new Date()).getTime();
+						if (time - UI.lastWorldUpdate > 50) {
+							UI.lastWorldUpdate = time;
+							world.update();
+						}
+						updateCanvas();
+					}
+
+					setTimeout(updateMove, 100);
+				};
+
+				updateMove();
+
+				canvas.addEventListener('mousedown', function MouseDownEvent(evt){
+					var bounds  = canvas.getBoundingClientRect(),
+						mouseY  = evt.clientY - bounds.top,
+						mouseX  = evt.clientX - bounds.left;
+
+					UI.mouse.isDown = true;
+					UI.mouse.position.x = mouseX;
+					UI.mouse.position.y = mouseY;
+				});
+
+				canvas.addEventListener('mouseup', function MouseUpEvent(evt){
+					UI.mouse.isDown = false;
+				});
+
+				canvas.addEventListener('mousemove', function MouseMoveEvent(evt){
+					if (UI.mouse.isDown) {
+						var bounds  = canvas.getBoundingClientRect(),
+							mouseY  = evt.clientY - bounds.top,
+							mouseX  = evt.clientX - bounds.left,
+							deltaY  = 1.7*2*(mouseY - UI.mouse.position.y),
+							deltaX  = 1.7*(mouseX - UI.mouse.position.x);
+
+						position.y += deltaY;
+						position.x += deltaX;
+
+						Objects.camera.position.x = Settings.scaleXZ*position.x;
+						Objects.camera.position.z = Settings.scaleXZ*position.y;
+						updateCamera();
+
+						UI.mouse.position.x = mouseX;
+						UI.mouse.position.y = mouseY;
+
+						var time = (new Date()).getTime();
+						if (time - UI.lastWorldUpdate > 50) {
+							UI.lastWorldUpdate = time;
+							world.update();
+						}
+						updateCanvas();
+					}
+				});
+
+				viewportCanvas.addEventListener('mousedown', function MouseDownEvent(evt){
+
+					var bounds  = viewportCanvas.getBoundingClientRect(),
+						mouseY  = evt.clientY - bounds.top,
+						mouseX  = evt.clientX - bounds.left;
+
+					UI.viewport.mouse.position.x = mouseX;
+					UI.viewport.mouse.position.y = mouseY;
+
+					var MOUSE_LOOK = 4,
+						MOUSE_MOVE = 1 | MOUSE_LOOK;
+					UI.viewport.mouse.buttons |= (1<<evt.button);
+					if ((UI.viewport.mouse.buttons & MOUSE_MOVE) === MOUSE_MOVE) {
+						UI.viewport.isMoving |= MOVE_FORWARD;
+					} else if ((UI.viewport.mouse.buttons & MOUSE_LOOK) === MOUSE_LOOK) {
+
+					}
+
+					evt.preventDefault();
+					return false;
+
+				});
+				viewportCanvas.oncontextmenu = function(){ return false; };
+
+				viewportCanvas.addEventListener('mouseup', function MouseUpEvent(evt){
+
+					var MOUSE_LOOK = 4,
+						MOUSE_MOVE = 1 | MOUSE_LOOK;
+					UI.viewport.mouse.buttons = UI.viewport.mouse.buttons & ~(1<<evt.button);
+					if ((UI.viewport.mouse.buttons & MOUSE_MOVE) !== MOUSE_MOVE) {
+						UI.viewport.isMoving &= ~MOVE_FORWARD;
+					}
+
+					evt.preventDefault();
+					return false;
+
+				});
+
+				viewportCanvas.addEventListener('mousemove', function MouseMoveEvent(evt){
+
+					var MOUSE_LOOK = 4;
+					if (UI.viewport.mouse.buttons & MOUSE_LOOK) {
+
+						var bounds  = viewportCanvas.getBoundingClientRect(),
+							mouseY  = evt.clientY - bounds.top,
+							mouseX  = evt.clientX - bounds.left,
+							deltaY  = 1.7*2*(mouseY - UI.viewport.mouse.position.y),
+							deltaX  = 1.7*(mouseX -   UI.viewport.mouse.position.x);
+
+
+
+							Objects.camera.phi += deltaX*0.001;
+							Objects.camera.phi = Objects.camera.phi % (Math.PI*2.0);
+
+							Objects.camera.theta += deltaY*0.0005;
+							if (Objects.camera.theta > Math.PI) Objects.camera.theta = Math.PI;
+							if (Objects.camera.theta < -Math.PI)Objects.camera.theta = -Math.PI;
+							// Objects.camera.theta = Objects.camera.theta % (Math.PI*1.0);
+							// if (Objects.camera.theta < 0) Objects.camera.theta = Math.PI*1.0 - 0.001;
+							// if (Objects.camera.phi < 0) Objects.camera.phi = Math.PI*2.0 - 0.001;
+
+
+							updateCamera();
+
+
+						UI.viewport.mouse.position.x = mouseX;
+						UI.viewport.mouse.position.y = mouseY;
+					}
+
+				});
+
+				document.addEventListener('keydown', function KeyDownEvent(evt){
+					
+					       if (evt.keyCode === 87) {
+						UI.viewport.isMoving |= MOVE_BACKWARD;
+					} else if (evt.keyCode === 65) {
+						UI.viewport.isMoving |= MOVE_LEFT;
+					} else if (evt.keyCode === 68) {
+						UI.viewport.isMoving |= MOVE_RIGHT;
+					} else if (evt.keyCode === 83) {
+						UI.viewport.isMoving |= MOVE_UP;
+					} else if (evt.keyCode === 16) {
+						UI.viewport.isMoving |= MOVE_RUNNING;
+					}
+				});
+
+				document.addEventListener('keyup', function KeyUpEvent(evt){
+					
+					       if (evt.keyCode === 87) {
+						UI.viewport.isMoving &= ~MOVE_BACKWARD;
+					} else if (evt.keyCode === 65) {
+						UI.viewport.isMoving &= ~MOVE_LEFT;
+					} else if (evt.keyCode === 68) {
+						UI.viewport.isMoving &= ~MOVE_RIGHT;
+					} else if (evt.keyCode === 83) {
+						UI.viewport.isMoving &= ~MOVE_UP;
+					} else if (evt.keyCode === 16) {
+						UI.viewport.isMoving &= ~MOVE_RUNNING;
+					}
+				});
+
+			});
+		</script>
+		<script src="js/generator.js"></script>
+</body>
+</html>
