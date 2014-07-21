@@ -18,11 +18,12 @@ var 	viewport = null,
 			pointRadius: 0.02,
 			fov: 45,
 			nearPlane: 1,
-			farPlane: 30000.0,
+			farPlane: 50000.0,
 			canvasWidth: null,
 			canvasHeight: null,
 			aspectRatio: null,
-			scaleXZ: 1.0
+			scaleXZ: 1.0,
+			useLOD: false
 	},  Objects = {
 			camera:{
 				position:new THREE.Vector3(0,0,0),
@@ -440,23 +441,27 @@ var 	viewport = null,
 	},
 
 	LOD_Spaces = {
-		0: Math.pow(1024,2),
-		1: Math.pow(2048,2),
-		2: Math.pow(4096,2),
-		3: Math.pow(7000,2),
-		4: Math.pow(9000,2),
-		5: Math.pow(12000,2),
+		0: Math.pow(6561,2),
+		1: Math.pow(2*6561,2),
+		2: Math.pow(3*6561,2),
+		3: Math.pow(4*6561,2),
+		// 4: Math.pow(9000,2),
+		// 5: Math.pow(12000,2),
 	},
 
 	lodLevelFromDistance = function(distance) {
 
-		var lastLevel = null;
-		for (var lodLevel in LOD_Spaces) {
-			lastLevel = parseInt(lodLevel);
-			if (distance < LOD_Spaces[lodLevel]) return parseInt(lodLevel);
-		}
+		if (Settings.useLOD) {
+			var lastLevel = null;
+			for (var lodLevel in LOD_Spaces) {
+				lastLevel = parseInt(lodLevel);
+				if (distance < LOD_Spaces[lodLevel]) return parseInt(lodLevel);
+			}
 
-		return lastLevel;
+			return lastLevel;
+		} else {
+			return 0;
+		}
 	},
 
 	drawScene = function(){

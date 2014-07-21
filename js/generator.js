@@ -1,21 +1,14 @@
 
 // TODO
-//	> filter selector: edge falloff, multiple selections, evaluation (pass function)
 //	> filter blending?
-//	> texture blending + detail texture; texture bleeding; 3d noise for bumpy ground & dirty surfaces; filter
-//				for vegetation
-//		- perfect the normal/slope values (canvas & world); fit on heightmap
+//	> texture blending (slope, normal, height-bands) + detail textures; texture bleeding; 3d noise for bumpy ground & dirty surfaces; specular for snow & ice; watery ground?  filter for vegetation; lighting
 //
 //	> use lighting & normals
 //
 //
-//	> fix sections/LOD/quadsize/farPlane (stable: 100/4/400/12000)
-//		smallish: (stable: 128/1024)
-//	> heightmap: mountains, large sand dunes, large hills, turbulence on mountains, bumpy ground, random boulders
-//	> fix: weird LOD switching
+//	> heightmap: random boulders
+// 	> allow LOD with base power 3; switch between base power 2 (with LOD) and base power 3
 //
-//	> Maximize viewRadius & farPlane   :)
-// 	> keep track of total memory used (# points, # quads.. use this to determine max view distance)
 //
 //
 //	> FIREFOX support
@@ -53,6 +46,8 @@
 // 	> BUG: quad edges show up as west(right), east(left)
 // 	> BUG: LOD3 and up doesn't work
 // 	> FIXME: putting elements and vao in same arraybuffer (NOT OKAY!)
+//
+// 	> Presentation: LOD; Powers of 2 vs. 3; Noise blending
 
 var canvas    = document.getElementById('heightmap'),
 	ctx       = canvas.getContext('2d'),
@@ -69,7 +64,8 @@ var canvas    = document.getElementById('heightmap'),
 				clearedThisQuad = false;
 			++workersWorking;
 			loadInfo.range.min = 0;
-			loadInfo.range.max = 6;
+			if (Settings.useLOD) loadInfo.range.max = 6;
+			else loadInfo.range.max = 0;
 			quad.generate(loadInfo.range).then(function(obj){
 				generatedQuadQueue.push(obj);
 				// var myWorker = obj.myWorker,
@@ -168,7 +164,7 @@ var World = function(){
 
 	this.hashQuad = function(x, y){ return x + y*274783; }; // TODO: better hash 
 
-	this.viewRadius = 12000;//16000;//1850;
+	this.viewRadius = 16000;//1850;
 	this.initialize = function(){
 
 		console.log("INITIALIZING!!!  ...("+world.quadSize+")");
@@ -295,7 +291,8 @@ var World = function(){
 	};
 	// this.edgeList = []; // Quads which are partially inside/outside the viewable range
 
-	this.quadSize = 2048;//8192;
+		// FIXME JB: TEST LOD3
+	this.quadSize = 6561;//2048;//8192;
 	this.quadRadius = 2*Math.sqrt(this.quadSize/2)
 
 	var world = this;

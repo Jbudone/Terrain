@@ -100,7 +100,14 @@ onmessage = function (oEvent) {
 		mountains -= 64 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
 		mountains /= 12;
 		mountains -= 1;
-		mountains = Noise.flatten( mountains, 2, -5 );
+		mountains = Noise.flatten( mountains, 2.5, -5 );
+
+		// Add Ridge-lines
+		// var ridges = Math.abs(voronoi.noise(point.x*0.0002, point.y*0.0002).y);
+		// if (ridges < 0.5) ridges = 0.5;
+		// ridges -= 0.5;
+		// mountains *= 1.0 + ridges;
+
 		if (mountains < 0) mountains = 0;
 
 
@@ -114,24 +121,30 @@ onmessage = function (oEvent) {
 
 
 
-		/*
 		// Sand Dunes
-		var dunes = 0.25*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.1, y:point.y*0.1}, 5, 9 ), 0.75, -0.2 );
-		var duneArea = 1.0 - Math.abs(voronoi.noise(point.x*0.0005, point.y*0.0005).y);
-		height = 0;
-		if (duneArea >= 0.5) {
+		var dunes = turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.1, y:point.y*0.1}, 5, 9 ), 0.75, -0.2 );
+		var duneArea = Math.abs(voronoi.noise(point.x*0.0005, point.y*0.0005).y);
+		if (duneArea < 0.5) duneArea = 0.5;
+		duneArea -= 0.5;
+		duneArea = 1.0 - Math.pow(duneArea, 0.5);
+
+		dunes = dunes * duneArea;
+
+		/*
+		// height = 1.0 - Math.sqrt(duneArea);
+		if (duneArea >= 0.1 && duneArea < 0.8) {
 			var duneSelector = 2 * Math.min(0.5, 1.0 - Math.abs(voronoi.noise(point.x*0.0005, point.y*0.0005).y));
 			// var duneSelector2 = 2 * Math.min(0.5, 1.0 - Math.abs(voronoi.noise((point.x+5)*0.0005, (point.y+5)*0.0005).y));
 			// duneSelector = duneSelector - duneSelector2;
 			// duneSelector *= 40;
 			height = dunes * duneSelector;
 		}
-		// duneSelector = Math.pow( duneSelector, 2 );
-		// duneSelector = Math.min(0.2, duneSelector) * 5;
-		// dunes *= duneSelector;
-		// dunes = Noise.flatten( dunes, 1.5, 0 );
-
+		duneSelector = Math.pow( duneSelector, 2 );
+		duneSelector = Math.min(0.2, duneSelector) * 5;
+		dunes *= duneSelector;
+		dunes = Noise.flatten( dunes, 1.5, 0 );
 		*/
+
 
 		// height = 1.0 - Math.abs(voronoi.noise(point.x*0.0005, point.y*0.0005).y);
 		// if (height > 0.5) height = 0.5;
@@ -146,6 +159,8 @@ onmessage = function (oEvent) {
 
 
 		var hills = 0.0*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.1, y:point.y*0.1}, 2, 10 ), 2, -0.5 );
+		hills = Noise.flatten( hills, 0.5, -0.5 );
+		if (hills < 0) hills = 0;
 		// height *= 2;
 		// height *= 1.0 - Math.abs(voronoi.noise(point.x*0.001, point.y*0.001).y);
 		// height /= 2;
@@ -167,7 +182,9 @@ onmessage = function (oEvent) {
 
 
 
-		height = mountains + valley;
+		height = mountains + valley + hills + dunes;// - pebbles;
+
+
 
 
 
@@ -407,7 +424,10 @@ onmessage = function (oEvent) {
 		quadY = oEvent.data.y,
 		lodRange = oEvent.data.lodRange;
 
-	var sections = 128, // NOTE: must divide the heightmap evenly
+		// FIXME JB: TEST LOD3
+	var basePower = 3, // versus 2
+		sections = 243, // NOTE: must divide the heightmap evenly
+	// var sections = 128, // NOTE: must divide the heightmap evenly
 		efixSections = 0,
 		scaleXZ = -1.0,
 		// qLen = Math.floor((quadSize+1)/sections);
@@ -415,13 +435,18 @@ onmessage = function (oEvent) {
 
 
 	var LOD_Spaces = [
+		// FIXME JB: TEST LOD3
 			new LOD_Space(1),
-			new LOD_Space(2),
-			new LOD_Space(4),
-			new LOD_Space(8),
-			new LOD_Space(16),
-			new LOD_Space(32),
-			new LOD_Space(64),
+			new LOD_Space(3),
+			new LOD_Space(9),
+			new LOD_Space(27),
+			// new LOD_Space(1),
+			// new LOD_Space(2),
+			// new LOD_Space(4),
+			// new LOD_Space(8),
+			// new LOD_Space(16),
+			// new LOD_Space(32),
+			// new LOD_Space(64),
 	];
 
 	/////////////////////
@@ -626,10 +651,10 @@ onmessage = function (oEvent) {
 								L = lSpace.lodSections,
 								// n = sections+1,
 								n = sections+efixSections+1,
-								i4 = 1*(yi*n + xi),
-								i3 = 1*(yi*n + (xi-L)),
-								i2 = 1*((yi-L)*n + xi),
-								i1 = 1*((yi-L)*n + (xi-L)),
+								i4 = (yi*n + xi),
+								i3 = (yi*n + (xi-L)),
+								i2 = ((yi-L)*n + xi),
+								i1 = ((yi-L)*n + (xi-L)),
 
 								in_L0  = null,
 								ie_L0  = null,
@@ -637,8 +662,8 @@ onmessage = function (oEvent) {
 								iw_L0  = null;
 
 								
-								if (L>=2) {
-									var L0 = L/2.0;
+								if (L>=basePower) {
+									var L0 = L/basePower;
 
 									in_L0 = (yi*n + (xi-L0));
 									ie_L0 = ((yi-L0)*n + xi);
