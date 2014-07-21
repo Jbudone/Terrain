@@ -1,5 +1,6 @@
 
 #heightmap {
+	display:none;
 	position:absolute;
 	/* margin:auto; */
 	/* left:0; */

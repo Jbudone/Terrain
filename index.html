@@ -78,7 +78,7 @@
 			vec3 applyFog( in vec3  rgb,       // original color of the pixel
 						  in float distance ) // camera to point distance
 			{
-				float b = 0.001;
+				float b = 0.0001;
 				float fogAmount = 1.0 - exp( -distance*b );
 				vec3  fogColor  = vec3(0.5,0.6,0.7);
 				return mix( rgb, fogColor, fogAmount );
@@ -102,7 +102,7 @@
 
 
 				tex.rgb += lightCol * lDotN;
-				tex.rgb += tex3.rgb * slope/250.0;
+				tex.rgb += tex3.rgb * slope/650.0;
 				tex.rgb *= 0.8;
 
 				// tex.rb = vec2(abs(normal) / 250.0);
@@ -175,7 +175,7 @@
 				//initWebGL();
 				//draw();
 				generateImage();
-				updateCanvas();
+				// updateCanvas();
 				initViewport();
 				begin();
 
@@ -246,8 +246,8 @@
 						// move.applyQuaternion(qY);
 
 						move.x *= -1;
-						if ( movement & MOVE_RUNNING ) move.multiplyScalar(100);
-						else move.multiplyScalar(10);
+						if ( movement & MOVE_RUNNING ) move.multiplyScalar(1000);
+						else move.multiplyScalar(100);
 						Objects.camera.position.add(move);
 						updateCamera();
 
@@ -259,7 +259,7 @@
 							UI.lastWorldUpdate = time;
 							world.update();
 						}
-						updateCanvas();
+						// updateCanvas();
 					}
 
 					setTimeout(updateMove, 100);
@@ -304,7 +304,7 @@
 							UI.lastWorldUpdate = time;
 							world.update();
 						}
-						updateCanvas();
+						// updateCanvas();
 					}
 				});
 

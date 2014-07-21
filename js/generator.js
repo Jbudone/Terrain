@@ -10,12 +10,12 @@
 //
 //
 //	> fix sections/LOD/quadsize/farPlane (stable: 100/4/400/12000)
-//	> send work info to workers (LOD start level & heightmap) and allow updating quads between LOD levels (ie.
-//			initially load LOD 7-8, then 5-6, then 3-4, then 1-2, then canvas heightmap)
-//		- send LOD range to worker; keep track of current LOD range; when drawing new LOD check if its on the
-//				edge of the range and queue update (load 3 LOD on init); use transferable objects to transfer
-//				points/normals/slopes to worker
-//		- worker load within range; load transferable objects to speed generating time
+//		smallish: (stable: 128/1024)
+//	> heightmap: mountains, large sand dunes, large hills, turbulence on mountains, bumpy ground, random boulders
+//	> fix: weird LOD switching
+//
+//	> Maximize viewRadius & farPlane   :)
+// 	> keep track of total memory used (# points, # quads.. use this to determine max view distance)
 //
 //
 //	> FIREFOX support
@@ -28,9 +28,13 @@
 // 	> show wireframe; switch between wireframe / solid
 // 	> git
 // 	> allow both webworkers & async mode (importscript for loading noises)
+// 	> settings to enable/disable heightmap; LOD0 loads heightmap
 // 	> draw camera point on map
 // 	> elegant way to swap between skybox textures & heightmap generators + textures
 // 	> better fog effects
+// 	> safe fail (modernizr) check if browser supports these: webworkers, canvas, webgl, transferableobjects
+// 	> NOTE: quadSize (speed: 8192, quality: 1024) -- cant fix without using INT elements, not supported yet
+// 	> build script (console.log for debug mode)
 //
 //	> generate heightmap & world points & elements at the same time (same loop)
 // 	> smoother movement
@@ -39,6 +43,7 @@
 // 	> better hashing algorithm (no need for really high numbers, just modulate)
 // 	> find a way to show wireframe (drawlines?)
 // 	> check performance & timeline
+// 	> loadQuadQueue check that quad is still needed for updating (distance, in view? in requested LOD range?)
 // 	> BUG: some noise returns outside of range values
 // 	> BUG: tri's drawn double sided
 // 	> BUG: voronoi noise with negative numbers
@@ -55,29 +60,40 @@ var canvas    = document.getElementById('heightmap'),
 	position  = {x:0, y:0},
 	world = null,
 	loadQuadQueue = [],
+	generatedQuadQueue = [],
 	workersWorking = 0,
 	checkWorkerQueue = function(){
-		if (loadQuadQueue.length && workersWorking < 5) {
-			var quad = loadQuadQueue.shift(),
+		if (loadQuadQueue.length && workersWorking < 2) {
+			var loadInfo = loadQuadQueue.shift(),
+				quad = loadInfo.quad,
 				clearedThisQuad = false;
 			++workersWorking;
-			quad.generate().then(function(obj){
-				var myWorker = obj.myWorker,
-					quad     = obj.quad;
-				console.log("Quad generated: "+quad.heightmap.data.length);
-				delete myWorker;
-				world.workers_working--;
-				setTimeout(updateCanvas, 500);
+			loadInfo.range.min = 0;
+			loadInfo.range.max = 6;
+			quad.generate(loadInfo.range).then(function(obj){
+				generatedQuadQueue.push(obj);
+				// var myWorker = obj.myWorker,
+				// 	quad     = obj.quad;
+				// // console.log("Quad generated: "+quad.heightmap.data.length);
+				// delete myWorker;
+				// world.workers_working--;
+				// // setTimeout(updateCanvas, 500);
 
-				bufferQuad(quad);
-				--workersWorking;
-				clearedThisQuad = true;
-				checkWorkerQueue();
+				// var time = (new Date()).getTime();
+				// bufferQuad(quad);
+				// var endTime = (new Date()).getTime();
+				// console.log("Time buffering Quad: "+(endTime-time));
+				// --workersWorking;
+				// clearedThisQuad = true;
+				// quad.updating = false;
+				// // setTimeout(checkWorkerQueue, 100);
 			});
 
-			setTimeout(function(){ if (!clearedThisQuad){ --workersWorking; } }, 8000); // TODO: remove this bug
+			setTimeout(function(){ if (!clearedThisQuad){ --workersWorking; quad.updating=false; } }, 8000); // TODO: remove this bug
 		}
 	};
+
+	setInterval( checkWorkerQueue, 10 );
 
 	var generateImage = function(){
 		canvas.width  = 500;
@@ -86,10 +102,15 @@ var canvas    = document.getElementById('heightmap'),
 		world.initialize();
 
 		for (var hash in world.quadCache) {
-			var quad = world.quadCache[hash];
-			loadQuadQueue.push(quad);
+			var quad = world.quadCache[hash],
+				lod  = lodLevelFromDistance( distanceFromQuad(quad.x, quad.y) );
+			loadQuadQueue.push({
+				quad: quad,
+				range: { min: Math.max(lod - 1, 0),
+						 max: lod + 1 }
+			});
 		}
-		checkWorkerQueue();
+		// setTimeout(checkWorkerQueue, 100);
 	},
 
 	updateCanvas = function(){
@@ -114,6 +135,13 @@ var canvas    = document.getElementById('heightmap'),
 var FULL_INSIDE = 1,
 	FULL_OUTSIDE = 2,
 	PARTIAL_INSIDE = 3;
+
+
+////////////////////////////////////////////////////
+//
+// 				WORLD
+//
+////////////////////////////////////////////////////
 
 var World = function(){
 
@@ -140,7 +168,7 @@ var World = function(){
 
 	this.hashQuad = function(x, y){ return x + y*274783; }; // TODO: better hash 
 
-	this.viewRadius = 5000;//1850;
+	this.viewRadius = 12000;//16000;//1850;
 	this.initialize = function(){
 
 		console.log("INITIALIZING!!!  ...("+world.quadSize+")");
@@ -212,19 +240,12 @@ var World = function(){
 
 			var quad = new Quad( quadToAdd.x, quadToAdd.y );
 			if (quad.isInside(position, this.viewRadius) === FULL_OUTSIDE) continue;
-			loadQuadQueue.push(quad);
-			/*
-			quad.generate().then(function(obj){
-				var myWorker = obj.myWorker,
-					quad     = obj.quad;
-				console.log("Quad generated: "+quad.heightmap.data.length);
-				delete myWorker;
-				world.workers_working--;
-				setTimeout(updateCanvas, 500);
-
-				bufferQuad(quad);
+			var lod  = lodLevelFromDistance( distanceFromQuad(quad.x, quad.y) );
+			loadQuadQueue.push({
+				quad: quad,
+				range: { min: Math.max(lod - 1, 0),
+						 max: lod + 1 }
 			});
-			*/
 
 			this.quadCache[quad.hash] = quad;
 			var neighboursToAdd = [
@@ -245,7 +266,7 @@ var World = function(){
 				}
 			}
 		}
-		checkWorkerQueue();
+		// setTimeout(checkWorkerQueue, 100);
 
 		for (var hash in deleteQueue) {
 			this.quadCache[hash].unload();
@@ -274,18 +295,30 @@ var World = function(){
 	};
 	// this.edgeList = []; // Quads which are partially inside/outside the viewable range
 
-	this.quadSize = 1024;
+	this.quadSize = 2048;//8192;
 	this.quadRadius = 2*Math.sqrt(this.quadSize/2)
 
 	var world = this;
 	this.workers_working=0;
 	this.workers_created=0;
+
+	////////////////////////////////////////////////////
+	//
+	// 				QUAD
+	//
+	////////////////////////////////////////////////////
+
 	var Quad = function(x, y){
 
 
 		this.x = x;
 		this.y = y;
 		this.hash = world.hashQuad(x, y);
+		this.loadedLOD = {
+			min: null,
+			max: null
+		};
+		this.updating = false;
 
 		// Is the quad in the viewable range: return FULL_INSIDE, FULL_OUTSIDE, PARTIAL_INSIDE
 		this.isInside = function(point, radius) {
@@ -318,33 +351,58 @@ var World = function(){
 		this.south = function() { return this.neighbours.south; };
 		this.west = function() { return this.neighbours.west; };
 
+		this.points   = null;
+		this.slopes   = null;
+		this.elements = [];
+
 		this.heightmap = null;
-		this.generate = function(scale) {
+		this.generate = function(range) {
 
 			var my = this;
 			return new Promise(function GeneratedQuad(resolve, reject){
 
-				var USE_WORKER = true;
-
-				if (USE_WORKER) {
+					var time = (new Date()).getTime();
 					var myWorker = new Worker("js/generatorWorker.js");
 					world.workers_working++;
 					world.workers_created++;
 
 					myWorker.addEventListener("message", function (oEvent) {
-						console.log("Called back by the worker!\n");
+						// console.log("Called back by the worker!\n");
 
 
+						var time = (new Date()).getTime();
 						var quad = world.quadCache[oEvent.data.hash];
 						if (quad) {
-							quad.heightmap = ctx.createImageData( world.quadSize+1, world.quadSize+1 );
-							var heightmap = new Uint8Array(oEvent.data.heightmap),
-								points = new Float32Array(oEvent.data.points),
-								slopes = new Float32Array(oEvent.data.slopes);
+							// quad.heightmap = ctx.createImageData( world.quadSize+1, world.quadSize+1 );
+							var time1 = (new Date()).getTime();
+							// var heightmap = new Uint8Array(oEvent.data.heightmap);
+							var time1End = (new Date()).getTime();
+							// console.log("	heightmap fetch: "+(time1End-time1));
+							time1 = (new Date()).getTime();
+							var	points = new Float32Array(oEvent.data.points);
+							time1End = (new Date()).getTime();
+							// console.log("	points fetch: "+(time1End-time1));
+							time1 = (new Date()).getTime();
+							var	slopes = new Float32Array(oEvent.data.slopes);
+							time1End = (new Date()).getTime();
+							// console.log("	slopes fetch: "+(time1End-time1));
 								// elements = new Uint16Array(oEvent.data.elements);
-							quad.heightmap.data.set(heightmap); // TODO: is this the fastest way?
+							time1 = (new Date()).getTime();
+							// quad.heightmap.data.set(heightmap); // TODO: is this the fastest way?
+							// quad.heightmap = heightmap;
+							time1End = (new Date()).getTime();
+							// console.log("	heightmap copy: "+(time1End-time1));
+							time1 = (new Date()).getTime();
 							quad.points = points;
+							time1End = (new Date()).getTime();
+							// console.log("	points copy: "+(time1End-time1));
+							time1 = (new Date()).getTime();
 							quad.slopes = slopes;
+							time1End = (new Date()).getTime();
+							// console.log("	slopes copy: "+(time1End-time1));
+
+
+							time1 = (new Date()).getTime();
 							// quad.elements = elements;
 
 							// quad.elements = {};
@@ -353,11 +411,11 @@ var World = function(){
 							// 		elements = new Uint16Array(buffer);
 							// 	quad.elements[bufferName] = {elements:elements};
 							// }
-							quad.elements = [];
 							for (var i=0; i<oEvent.data.elements.length; ++i) {
 								var el = oEvent.data.elements[i],
 									elements = {
 										lodSections: el.lodSections,
+										lodLevel: el.lodLevel,
 										elements:{},
 											// inner:  new Uint16Array(el.inner),
 											// top:    new Uint16Array(el.top),
@@ -370,11 +428,21 @@ var World = function(){
 								for (var elementsName in el) {
 									elements.elements[elementsName] = new Uint16Array(el[elementsName]);
 								}
-								quad.elements.push(elements);
+								quad.elements[el.lodLevel] = elements;
+
+								if (quad.loadedLOD.min === null || el.lodLevel < quad.loadedLOD.min) {
+									quad.loadedLOD.min = el.lodLevel;
+								} else if (quad.loadedLOD.max === null || el.lodLevel > quad.loadedLOD.max) {
+									quad.loadedLOD.max = el.lodLevel;
+								}
 							}
 
+							time1End = (new Date()).getTime();
+							// console.log("	elements copy: "+(time1End-time1));
 
-							console.log("Quad points (transfered): "+quad.points.length);
+							// console.log("Quad points (transfered): "+quad.points.length);
+							var endTime = (new Date()).getTime();
+							// console.log("Time copying Quad: "+(endTime-time));
 							resolve({myWorker: this, quad: quad});
 
 							// quad.heightmap.data = oEvent.data.heightmap;
@@ -384,14 +452,30 @@ var World = function(){
 
 					}, false);
 
-					myWorker.postMessage({x:my.x, y:my.y, quadSize:world.quadSize, hash:my.hash}); // start the worker.
+					workerDetails = {
+						x:my.x,
+						y:my.y,
+						quadSize:world.quadSize,
+						hash:my.hash,
+						lodRange:range
+					};
 
-				} else {
+					transferringObjects = [];
 
+					if (my.points && my.slopes) {
+						workerDetails.points = my.points.buffer;
+						workerDetails.slopes = my.slopes.buffer;
+						workerDetails.pointsLOD = my.loadedLOD.min;
 
-				}
+						transferringObjects = [
+							workerDetails.points,
+							workerDetails.slopes ];
 
+					}
 
+					myWorker.postMessage(workerDetails, transferringObjects); // start the worker.
+					var endTime = (new Date()).getTime();
+					// console.log("Time preparing Quad generation: "+(endTime-time));
 
 			});
 
