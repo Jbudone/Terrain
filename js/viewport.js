@@ -15,7 +15,6 @@ var 	viewport = null,
 			}
 	},  Settings = {
 			framerate: 45,
-			pointRadius: 0.02,
 			fov: 45,
 			nearPlane: 1,
 			farPlane: 50000.0,
@@ -69,30 +68,35 @@ var 	viewport = null,
 			}
 	},	Textures = {
 			main: [
-					{src: "ageofcanyon.jpg", sampler: null},
-					{src: "faultzone.jpg", sampler: null},
-					{src: "barrenreds.jpg", sampler: null},
-					{src: "deepcave.jpg", sampler: null},
-					{src: "grass.jpg", sampler: null},
-					{src: "gravel.jpg", sampler: null} ],
+					{name: "snow"     , src: "snow.jpg"              , sampler: null}   ,
+					{name: "ice"      , src: "magnifiedfrost.jpg"    , sampler: null}   ,
+					{name: "snowmud"  , src: "snowymud.jpg"          , sampler: null}   ,
+					{name: "volcano"  , src: "slumberingvolcano.jpg" , sampler: null}   ,
+					{name: "canyon"   , src: "ageofcanyon.jpg"       , sampler: null}   ,
+					{name: "fault"    , src: "faultzone.jpg"         , sampler: null}   ,
+					{name: "deepcave" , src: "deepcave.jpg"          , sampler: null}   ,
+					{name: "bison"    , src: "justaddbison.jpg"      , sampler: null}   ,
+					{name: "rocky"    , src: "rocky.jpg"             , sampler: null}   ,
+					{name: "grass"    , src: "grass.jpg"             , sampler: null}   ,
+					{name: "gravel"   , src: "gravel.jpg"            , sampler: null} ] ,
 			skybox: [
-
 						{ sampler: null, options: { skip: false }, cubemap: [
-							{ src: "FullMoon/FullMoonUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
-							{ src: "FullMoon/FullMoonDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
-							{ src: "FullMoon/FullMoonLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
-							{ src: "FullMoon/FullMoonRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
-							{ src: "FullMoon/FullMoonFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
-							{ src: "FullMoon/FullMoonBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
-						] },
-
-						{ sampler: null, options: { skip: true }, cubemap: [
 							{ src: "SunSet/SunSetUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
 							{ src: "SunSet/SunSetDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
 							{ src: "SunSet/SunSetLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
 							{ src: "SunSet/SunSetRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
 							{ src: "SunSet/SunSetFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
 							{ src: "SunSet/SunSetBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
+						] },
+
+
+						{ sampler: null, options: { skip: true }, cubemap: [
+							{ src: "FullMoon/FullMoonUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
+							{ src: "FullMoon/FullMoonDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
+							{ src: "FullMoon/FullMoonLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
+							{ src: "FullMoon/FullMoonRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
+							{ src: "FullMoon/FullMoonFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
+							{ src: "FullMoon/FullMoonBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
 						] },
 
 			
@@ -258,6 +262,28 @@ var 	viewport = null,
 
 			var mvUniform = gl.getUniformLocation(shader.program, "uMVMatrix");
 			gl.uniformMatrix4fv(mvUniform, false, new Float32Array( mvMatrix ));
+
+			var viewUniform = gl.getUniformLocation(shader.program, "viewDirection");
+			if (viewUniform) {
+				var view = new THREE.Vector3(0,0,1);
+
+				var qX = new THREE.Quaternion(),
+					qY = new THREE.Quaternion(),
+					qZ = new THREE.Quaternion(),
+					mV = new THREE.Matrix4();
+				qX.setFromAxisAngle( new THREE.Vector3(0,1,0), -Objects.camera.phi );
+				qY.setFromAxisAngle( new THREE.Vector3(-1,0,0),Objects.camera.theta );
+				qZ.setFromAxisAngle( new THREE.Vector3(0,0,1), Objects.camera.lambda );
+				qY.multiply(qX);
+				qY.multiply(qZ);
+				mV.makeRotationFromQuaternion(qY);
+				mV.getInverse(mV);
+				view.applyMatrix4(mV);
+
+				view.x *= -1;
+
+				gl.uniform3f(viewUniform, false, view.x, view.y, view.z);
+			}
 		});
 
 
@@ -295,7 +321,7 @@ var 	viewport = null,
 							gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex.sampler);
 							gl.texImage2D(itex.target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 							gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-							gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+							gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 							if (--loading==0) {
 								gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
 								tex.ready = true;
@@ -338,13 +364,16 @@ var 	viewport = null,
 
 		gl.bindTexture(target, texture);
 		gl.texImage2D(bindTarget, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+			gl.texParameteri(target, gl.TEXTURE_WRAP_S, gl.REPEAT);
+			gl.texParameteri(target, gl.TEXTURE_WRAP_T, gl.REPEAT);
 		gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-		// gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+		// gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.GL_LINEAR);
 		gl.generateMipmap(target);
 
 		// gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.LINEAR); //gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.
 
+		/*
 		if (options.repeat) {
 			gl.texParameteri(target, gl.TEXTURE_WRAP_S, gl.REPEAT);
 			gl.texParameteri(target, gl.TEXTURE_WRAP_T, gl.REPEAT);
@@ -352,6 +381,7 @@ var 	viewport = null,
 			gl.texParameteri(target, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); //Prevents s-coordinate wrapping (repeating).
 			gl.texParameteri(target, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); //Prevents t-coordinate wrapping (repeating).
 		}
+		*/
 		gl.bindTexture(target, null);
 	},
 
@@ -584,7 +614,7 @@ var 	viewport = null,
 		for (var i=0; i<Textures.main.length; ++i) {
 			gl.activeTexture(gl.TEXTURE0+i);
 			gl.bindTexture(gl.TEXTURE_2D, Textures.main[i].sampler);
-			gl.uniform1i(gl.getUniformLocation(glShader.main.program, "uSampler"+i.toString()), i);
+			gl.uniform1i(gl.getUniformLocation(glShader.main.program, Textures.main[i].name), i);
 		}
 
 		_.each(Shaders.main.vertex.attributes, function(attribute, name){
@@ -635,7 +665,7 @@ var 	viewport = null,
 
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, quad.quad.slopesBuffer);
-			gl.vertexAttribPointer(Shaders.main.vertex.attributes['aVertexSlope'], 3, gl.FLOAT, false, 0, 0);
+			gl.vertexAttribPointer(Shaders.main.vertex.attributes['aVertexSlope'], 4, gl.FLOAT, false, 0, 0);
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, quad.quad.verticesBuffer);
 			gl.vertexAttribPointer(Shaders.main.vertex.attributes['aVertexPosition'], 3, gl.FLOAT, false, 0, 0);

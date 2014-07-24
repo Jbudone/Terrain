@@ -1,13 +1,26 @@
 
 // TODO
-//	> filter blending?
-//	> texture blending (slope, normal, height-bands) + detail textures; texture bleeding; 3d noise for bumpy ground & dirty surfaces; specular for snow & ice; watery ground?  filter for vegetation; lighting
 //
-//	> use lighting & normals
+//	> 3d noise in shaders: bumpy ground, dirty surfaces, vegetation, watery ground, turbulence + sine normal
+//							map on high slopes (erosion), alpha map between main/slope textures, turbulence
+//							along band-lines
+//	> specular based off heightband, normal & slope (snow & ice, watery ground?)
+//	> fix fog stuff
 //
 //
+//		(weekend MUST DO)
+//	> CLEAN + DOCUMENT
+//	> Presentation w/ slides
+//
+//		(next week nice-to-have)
 //	> heightmap: random boulders
-// 	> allow LOD with base power 3; switch between base power 2 (with LOD) and base power 3
+//	> various detail textures?
+// 	> fix LOD base 3?
+// 	> maximize viewRadius, quadSize & sections; determine based off of if LOD is used, memory consumption; try
+// 			to see far enough to always see mountains in the distance; fix fog
+// 	> try dynamic LOD w/ larger quads?
+// 	> optimize GLSL stuff
+// 	> over-bright snow-band; emphasis on lighting on steep mountain slopes
 //
 //
 //
@@ -44,7 +57,7 @@
 // 	> BUG: quads being unloaded twice
 // 	> BUG: scalability between quadsize, section count, and LOD's  (using fixed numbers until patched)
 // 	> BUG: quad edges show up as west(right), east(left)
-// 	> BUG: LOD3 and up doesn't work
+// 	> BUG: glsl flickering effect along band-lines
 // 	> FIXME: putting elements and vao in same arraybuffer (NOT OKAY!)
 //
 // 	> Presentation: LOD; Powers of 2 vs. 3; Noise blending
@@ -292,7 +305,7 @@ var World = function(){
 	// this.edgeList = []; // Quads which are partially inside/outside the viewable range
 
 		// FIXME JB: TEST LOD3
-	this.quadSize = 6561;//2048;//8192;
+	this.quadSize = 6200;//4216;//6561;//2048;//8192;
 	this.quadRadius = 2*Math.sqrt(this.quadSize/2)
 
 	var world = this;

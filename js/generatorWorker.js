@@ -375,7 +375,7 @@ onmessage = function (oEvent) {
 		scaleSteepness_World: 50*256,
 
 		scaleNormal_Canvas: 500 * 250,
-		scaleNormal_World: 500*250,
+		scaleNormal_World: 1*1,
 	};
 
 	var NORTH = 1<<0,
@@ -425,9 +425,10 @@ onmessage = function (oEvent) {
 		lodRange = oEvent.data.lodRange;
 
 		// FIXME JB: TEST LOD3
-	var basePower = 3, // versus 2
-		sections = 243, // NOTE: must divide the heightmap evenly
-	// var sections = 128, // NOTE: must divide the heightmap evenly
+	// var basePower = 3, // versus 2
+	// 	sections = 243, // NOTE: must divide the heightmap evenly
+	var basePower = 2,
+		sections = 248, // NOTE: must divide the heightmap evenly
 		efixSections = 0,
 		scaleXZ = -1.0,
 		// qLen = Math.floor((quadSize+1)/sections);
@@ -436,14 +437,14 @@ onmessage = function (oEvent) {
 
 	var LOD_Spaces = [
 		// FIXME JB: TEST LOD3
-			new LOD_Space(1),
-			new LOD_Space(3),
-			new LOD_Space(9),
-			new LOD_Space(27),
 			// new LOD_Space(1),
-			// new LOD_Space(2),
-			// new LOD_Space(4),
-			// new LOD_Space(8),
+			// new LOD_Space(3),
+			// new LOD_Space(9),
+			// new LOD_Space(27),
+			new LOD_Space(1),
+			new LOD_Space(2),
+			new LOD_Space(4),
+			new LOD_Space(8),
 			// new LOD_Space(16),
 			// new LOD_Space(32),
 			// new LOD_Space(64),
@@ -467,7 +468,7 @@ onmessage = function (oEvent) {
 		loadedLOD    = oEvent.data.pointsLOD;
 	} else {
 		pointsBuffer = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3);
-		slopesBuffer = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3);
+		slopesBuffer = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*4);
 	}
 
 	var points = new Float32Array(pointsBuffer),
@@ -488,7 +489,7 @@ onmessage = function (oEvent) {
 	// var arrayBuffer = new ArrayBuffer(4*(quadSize+1)*(quadSize+1));
 	// var heightmap = new Uint8Array(arrayBuffer);
 	// var heightmap = new ArrayBuffer(4*(quadSize+1)*(quadSize+1)); //ctx.createImageData( quadSize+1, quadSize+1 );
-	var i = 0;
+	var i = 0, si = 0;
 	var BUFFER_INNER  = 1<<0,
 		BUFFER_TOP    = 1<<1,
 		BUFFER_RIGHT  = 1<<2,
@@ -582,7 +583,7 @@ onmessage = function (oEvent) {
 					// previous heights
 					var leftHeight   = 0.0,
 						bottomHeight = 0.0,
-						snm = 3;
+						snm = 1;
 					if (xi < snm ||
 					    ((xi-snm) % Math.min(LOD_Spaces[lodRange.min].lodSections, (loadedLOD!==null? LOD_Spaces[loadedLOD].lodSections : LOD_Spaces[lodRange.min].lodSections)) != 0) ) {
 						leftHeight = getHeightAt({x: x-snm*qLen, y: y});
@@ -598,9 +599,23 @@ onmessage = function (oEvent) {
 					}
 
 					var steepness = 0.0,
-						normalLen = (snm*snm + (height-leftHeight)*(height-leftHeight)) *
-									(snm*snm + (height-bottomHeight)*(height-bottomHeight));
-						normal = {x: -snm*(snm*snm)*(height-leftHeight)/normalLen, y: -snm*(snm*snm)*(height-bottomHeight)/normalLen, z: (snm*snm)/normalLen};
+						// normalLen = (snm*snm + (height-leftHeight)*(height-leftHeight)) *
+						// 			(snm*snm + (height-bottomHeight)*(height-bottomHeight));
+						// normal = {x: -snm*(snm*snm)*(height-leftHeight)/normalLen, y: -snm*(snm*snm)*(height-bottomHeight)/normalLen, z: (snm*snm)/normalLen};
+						// normal = {x: -snm*(height-leftHeight)/normalLen, y: -(snm*snm)/normalLen, z: -snm*(height-bottomHeight)/normalLen};
+						s = snm/100;
+						Lx = -s,   Ly = (height-leftHeight),   Lz = 0,
+						Bx = 0,    By = (height-bottomHeight), Bz = -s,
+						Llen = Math.sqrt(Lx*Lx + Ly*Ly + Lz*Lz),
+						Blen = Math.sqrt(Bx*Bx + By*By + Bz*Bz);
+					Lx /= Llen; Ly /= Llen; Lz /= Llen;
+					Bx /= Blen; By /= Blen; Bz /= Blen;
+
+					var nX = Bz*Ly - Lz*By,
+						nY = -(Lx*Bz - Lz*Bx),
+						nZ = Lx*By - Ly*Bz;
+					var normal = {x: nX, y: nY, z: nZ };
+
 
 					steepness = Math.max( Math.abs(height - leftHeight), Math.abs(height - bottomHeight) );
 					var steepCanvas = steepness * Settings.scaleSteepness_Canvas;
@@ -614,9 +629,10 @@ onmessage = function (oEvent) {
 					if (normalCanvas > 255) normalCanvas = 255;
 					// heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 2 ] = normalCanvas;
 
-					slopes[i+0] = normal.x * Settings.scaleNormal_World;
-					slopes[i+1] = normal.y * Settings.scaleNormal_World;
-					slopes[i+2] = steepness* Settings.scaleSteepness_World;
+					slopes[si+0] = Math.abs(normal.x) * Settings.scaleNormal_World;
+					slopes[si+1] = Math.abs(normal.y) * Settings.scaleNormal_World;
+					slopes[si+2] = Math.abs(normal.z) * Settings.scaleNormal_World;
+					slopes[si+3] = steepness* Settings.scaleSteepness_World;
 
 					// if (height !== bottomHeight) {
 					// 	if (logged < 20) {
@@ -1124,6 +1140,7 @@ onmessage = function (oEvent) {
 
 
 				i+=3;
+				si+=4;
 			}
 		}
 

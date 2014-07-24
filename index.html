@@ -31,49 +31,92 @@
 
 		<script id="shader-vs" type="x-shader/x-vertex">
 			attribute vec3 aVertexPosition;
-			attribute vec3 aVertexSlope;
+			attribute vec4 aVertexSlope;
 
+			//uniform vec3 viewDirection;
 			uniform mat4 uMVMatrix;
 			uniform mat4 uVMatrix;
 			uniform mat4 uPMatrix;
 
-			// varying float ptSize;
 			varying vec3 pos;
 			varying float depth;
 			varying float distance;
 
-			varying vec2 normal;
+			varying vec3 normal;
 			varying float slope;
+			varying vec3 band; // {x: height-band, y: height alpha, z: slope alpha}
 
 			void main(void) {
 				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexPosition, 1.0); 
 				gl_Position = position;
 				pos = aVertexPosition.xyz;
 				depth = aVertexPosition.y/50.0;
-				distance = sqrt(position.x*position.x + position.z*position.z);
+				distance = sqrt(position.x*position.x + position.z*position.z + position.y*position.y);
 
-				normal = aVertexSlope.xy;
-				slope = aVertexSlope.z;
+				normal = aVertexSlope.xyz;
+				slope = aVertexSlope.w;
+
+
+				// Texture synthesis
+				// 	4 [5000+] snow, ice
+				// 	3 [4000,5000] snow-mud, volcano
+				// 	2 [1000,4000] canyon, deep-cave
+				// 	1 [100,1000] bison, rocky
+				// 	0 [100-] dirt
+
+				float band0 = 100.0;
+				float band1 = 700.0;
+				float band2 = 4000.0;
+				float band3 = 5000.0;
+				float band4 = 7000.0;
+				if (pos.y > band3) {
+					band.x = 4.0;
+					band.y = clamp((pos.y - band3) / (band4 - band3), 0.0, 1.0);
+				} else if (pos.y > band2) {
+					band.x = 3.0;
+					band.y = clamp((pos.y - band2) / (band3 - band2), 0.0, 1.0);
+				} else if (pos.y > band1) {
+					band.x = 2.0;
+					band.y = clamp((pos.y - band1) / (band2 - band1), 0.0, 1.0);
+				} else if (pos.y > band0) {
+					band.x = 1.0;
+					band.y = clamp((pos.y - band0) / (band1 - band0), 0.0, 1.0);
+				} else {
+					band.x = 0.0;
+					band.y = clamp((pos.y) / (band0), 0.0, 1.0);
+				}
+
+				band.z = clamp(slope / 800.0, 0.0, 1.0);
+
 			}
 		</script>
 
 		<script id="shader-fs" type="x-shader/x-fragment">
 
 			precision mediump float;
-			uniform sampler2D uSampler0;
-			uniform sampler2D uSampler1;
-			uniform sampler2D uSampler2;
-			uniform sampler2D uSampler3;
-			uniform sampler2D uSampler4;
-			uniform sampler2D uSampler5;
 			uniform vec3 uColor;
+
+			uniform sampler2D snow;
+			uniform sampler2D ice;
+			uniform sampler2D snowmud;
+			uniform sampler2D volcano;
+			uniform sampler2D fault;
+			uniform sampler2D canyon;
+			uniform sampler2D deepcave;
+			uniform sampler2D bison;
+			uniform sampler2D rocky;
+			uniform sampler2D grass;
+			uniform sampler2D gravel;
+
+			uniform vec3 viewDirection;
 
 			varying vec3 pos;
 			varying float depth;
 			varying float distance;
 
-			varying vec2 normal;
+			varying vec3 normal;
 			varying float slope;
+			varying vec3 band;
 
 			vec3 applyFog( in vec3  rgb,       // original color of the pixel
 						  in float distance ) // camera to point distance
@@ -84,32 +127,237 @@
 				return mix( rgb, fogColor, fogAmount );
 			}
 
+			vec4 triPlanar( sampler2D tex, vec3 coords, vec3 normal ) {
+				vec4 color = texture2D( tex, mod(coords.xy, 1.0) ) * normal.z + texture2D( tex, mod(coords.xz, 1.0) ) * normal.y + texture2D( tex, mod(coords.yz, 1.0) ) * normal.x;
+				// color /= 3.0;
+				return color;
+			}
+
 			void main(void) {
-				// gl_FragColor = vec4( 1.0*depth, mod((0.1*pos.x),1.0), mod((0.1*pos.z),1.0), 1.0 );
-				// gl_FragColor = vec4( 1.0*depth, mod((0.1*pos.x),1.0), 1.0, 1.0 );
-				//gl_FragColor = vec4( 1.0*depth, 1.0, 1.0, 1.0 );
-				vec4 tex1 = texture2D(uSampler2, vec2(mod(pos.x*0.01,1.0), mod(pos.z*0.01,1.0)));
-				tex1.b *= depth;
-				vec4 tex2 = texture2D(uSampler1, vec2(mod(pos.x*0.001,1.0), mod(pos.z*0.001,1.0)));
-				vec4 tex3 = texture2D(uSampler0, vec2(mod(pos.x*0.01,1.0), mod(pos.z*0.01,1.0)));
 
-				vec4 tex = tex1 * tex2;
+				// vec3 blending = abs( normal );
+				// blending = normalize(max(blending, 0.00001)); // Force weights to sum to 1.0
+				// float b = (blending.x + blending.y + blending.z);
+				// blending /= vec3(b, b, b);
 
-				vec3 lightCol = vec3(0.9, 0.7, 0.1);
-				vec3 light_pos = vec3(-300, 180, -300);
-				vec2 light_norm = normalize(light_pos-pos).xz;
-				float lDotN = max(dot(normalize(normal), -light_norm), 0.0) / 50.0;
+				// vec4 tex1 = triPlanar( deepcave, pos*0.01,  blending );
+				// vec4 tex2 = triPlanar( fault, pos*0.001, blending );
+				// vec4 tex3 = triPlanar( canyon, pos*0.01,  blending );
+
+				// TODO: apply detail texture to each fetch
+				vec4 colBase1;
+				vec4 colBase2;
+				vec4 colSlope1;
+				vec4 colSlope2;
+				vec4 colDetail;
+				float texBaseScale = 0.005;
+				float texBaseScale2 = -0.0005;
+				float texSlopeScale = 0.001;
+				float texSlopeScale2 = -0.0001;
+				float texDetailScale = texBaseScale*8.0;
+
+				// 	4 [5000+] snow, ice
+				// 	3 [4000,5000] snow-mud, volcano
+				// 	2 [1000,4000] canyon, deep-cave
+				// 	1 [100,1000] bison, rocky
+				// 	0 [100-] dirt
+				float bx;
+				float by;
+				float bz = band.z;
+				float bMult;
+				float band0 = 500.0;
+				float band1 = 700.0;
+				float band2 = 3000.0;
+				float band3 = 5000.0;
+				float band4 = 6000.0;
+				float band5 = 10000.0;
+				vec2 steepSlopePos = vec2( pos.y, max(pos.x , pos.z)); // TODO: adds really cool effects when
+											// used in place of pos.xz on steep slopes (mountains)
+				if (pos.y > band4) {
+					bx = 5.0;
+					by = clamp((pos.y - band4) / (band5 - band4), 0.0, 1.0);
+				} else if (pos.y > band3) {
+					bx = 4.0;
+					by = clamp((pos.y - band3) / (band4 - band3), 0.0, 1.0);
+				} else if (pos.y > band2) {
+					bx = 3.0;
+					by = clamp((pos.y - band2) / (band3 - band2), 0.0, 1.0);
+				} else if (pos.y > band1) {
+					bx = 2.0;
+					by = clamp((pos.y - band1) / (band2 - band1), 0.0, 1.0);
+				} else if (pos.y > band0) {
+					bx = 1.0;
+					by = clamp((pos.y - band0) / (band1 - band0), 0.0, 1.0);
+				} else {
+					bx = 0.0;
+					by = clamp((pos.y) / (band0), 0.0, 1.0);
+				}
+				float scaleRocks = 2.0;
+				float scaleRocks2 = 4.0;
+				float scaleCave  = 0.5;
+				float scaleVolcano = 3.0;
+
+				float lightIntensity = 1.0;
+				float attenuation = 0.0;
+				float shininess = 0.0;
+
+				// TODO: tinting the cave texture on the mountain to closely match the rocks..
+				vec4 tintRock = vec4(1.0,1.0,1.0,1.0)*0.2;
+				vec4 tintCave = vec4(1.0,1.0,1.0,1.0)*1.0;// vec4( 56.0/250.0, 50.0/250.0, 40.0/250.0, 1.0 ) * 2.0;
+				//vec4 tintCave = vec4( 56.0/250.0, 50.0/250.0, 40.0/250.0, 1.0 ) * 1.2;
+				if (bx < 1.0) {
+
+					colBase1 = texture2D( fault, pos.xz * texBaseScale );
+					colBase1 *= texture2D( fault, pos.xz * texBaseScale2 );
+
+					colBase2 = texture2D( bison,  pos.xz * texBaseScale );
+					colBase2 *= texture2D( bison,  pos.xz * texBaseScale2 );
+
+					colSlope1 = texture2D( rocky, pos.xz * texSlopeScale * scaleRocks ) * tintRock;
+					colSlope2 = texture2D( rocky,  pos.xz * texSlopeScale * scaleRocks ) * tintRock;
+
+					colDetail = texture2D( gravel, pos.xz * texDetailScale );
+					bMult =3.8;
+					lightIntensity = 0.25;
+
+				} else if (bx < 2.0) {
+
+					colBase1 = texture2D( bison,  pos.xz * texBaseScale );
+					colBase1 *= texture2D( bison, pos.xz * texBaseScale2 );
+
+					colBase2 = texture2D( rocky, pos.xz * texBaseScale );
+					colBase2 *= texture2D( rocky,  pos.xz * texBaseScale2 * scaleRocks2 );
+
+					colSlope1 = texture2D( rocky,    pos.xz * texSlopeScale * scaleRocks ) * tintRock;
+					colSlope2 = texture2D( deepcave, pos.xz * texSlopeScale * scaleCave ) * tintCave;
+
+					colDetail = texture2D( gravel, pos.xz * texDetailScale );
+					bMult = (3.8 - 1.8) * (1.0 - by) + 1.8;
+					lightIntensity = 0.25;
+
+				} else if (bx < 3.0) {
+
+					colBase1 = texture2D( rocky,  pos.xz * texBaseScale );
+					colBase1 *= texture2D( rocky, pos.xz * texBaseScale2 * scaleRocks2 );
+
+					colBase2 = texture2D( rocky, pos.xz * texBaseScale * scaleRocks );
+					colBase2 *= texture2D( rocky,  pos.xz * texBaseScale2 * scaleRocks2 );
+
+					colSlope1 = texture2D( deepcave,  pos.xz * texSlopeScale * scaleCave ) * tintCave;
+					colSlope2 = texture2D( deepcave, steepSlopePos * texSlopeScale * scaleCave ) * tintCave;
+
+					colDetail = texture2D( gravel, pos.xz * texDetailScale );
+					bMult =1.8;
+					lightIntensity = (0.25 - 1.0) * (1.0 - by) + 1.0;
 
 
-				tex.rgb += lightCol * lDotN;
-				tex.rgb += tex3.rgb * slope/650.0;
-				tex.rgb *= 0.8;
+				} else if (bx < 4.0) {
+
+					colBase1 = texture2D( rocky,  pos.xz * texBaseScale * scaleRocks );
+					colBase1 *= texture2D( rocky, pos.xz * texBaseScale2 * scaleRocks2 );
+
+					colBase2 = texture2D( snowmud, pos.xz * texBaseScale * 0.2 );
+					colBase2 *= texture2D( snowmud,  pos.xz * texBaseScale2 );
+
+					colSlope1 = texture2D( deepcave, steepSlopePos * texSlopeScale * scaleCave ) * tintCave;
+					colSlope2 = texture2D( volcano,  pos.xz * texSlopeScale * scaleVolcano );
+
+					colDetail = texture2D( gravel, pos.xz * texDetailScale );
+					bMult =1.8;
+					lightIntensity = 1.0;//(0.6 - 1.0) * (by - 1.0) + 0.6;
+					attenuation = 0.2;
+					shininess = 5.0;
+
+				} else if (bx < 5.0) {
+
+					colBase1 = texture2D( snowmud, pos.xz * texBaseScale * 0.2 );
+					colBase1 *= texture2D( snowmud, pos.xz * texBaseScale2 );
+
+					colBase2 = texture2D( snow,    pos.xz * texBaseScale );
+					colBase2 *= texture2D( snow,  pos.xz * texBaseScale2 );
+
+					colSlope1 = texture2D( volcano, pos.xz * texSlopeScale * scaleVolcano );
+					colSlope2 = texture2D( ice,     pos.xz * texSlopeScale );
+
+					colDetail = texture2D( gravel, pos.xz * texDetailScale );
+					bMult = (1.8 - 1.0) * (1.0 - by) + 1.0;
+					lightIntensity = (0.6 - 1.0) * (by - 1.0) + 0.6;
+					attenuation = 0.2;
+					shininess = 5.0;
+
+				} else if (bx == 5.0) {
+
+					colBase1 = texture2D( snow, pos.xz * texBaseScale );
+					colBase1 *= texture2D( snow, pos.xz * texBaseScale2 );
+
+					colBase2 = texture2D( snow,    pos.xz * texBaseScale );
+					colBase2 *= texture2D( snow,  pos.xz * texBaseScale2 );
+
+					colSlope1 = texture2D( ice, pos.xz * texSlopeScale );
+					colSlope2 = texture2D( ice,     pos.xz * texSlopeScale );
+
+					colDetail = texture2D( gravel, pos.xz * texDetailScale );
+					bMult = 1.0;
+					lightIntensity = 0.6;
+					attenuation = 0.2;
+					shininess = 5.0;
+
+				}
+
+
+				vec4 texBase = colBase1 * (1.0 - by) + colBase2 * by;
+				vec4 texSlope = colSlope1 * (1.0 - by) + colSlope2 * by;
+				// vec4 tex = texSlope;
+
+				vec4 tex = texBase * (1.0 - bz) + texSlope * bz;
+				tex *= bMult;
+				// tex *= colDetail * 8.0;
+
+				// tex = vec4(band, 1.0);
+				// tex.r /= 4.0;
+
+
+				// vec4 tex1 = texture2D(fault, pos.xz*0.01);
+				// vec4 tex2 = texture2D(deepcave, pos.xz*0.001);
+
+				// vec4 tex = tex1 * tex2 * 2.0;
+
+				vec3 lightCol = vec3(1.0, 1.0, 1.0);
+				//vec3 lightCol = vec3(0.9, 0.7, 0.1);
+				//vec3 light_pos = vec3(pos.x-300.0, pos.y+180.0, pos.z-300.0);
+				//vec3 light_norm = normalize(light_pos-pos);
+				vec3 light_norm = normalize(vec3(-4.0, -1.0, 4.0));
+				float lDotN = max(dot(normalize(normal), -light_norm), 0.0) * 1.0;
+
+
+				// Specular
+				vec3 specularReflection;
+				if (lDotN < 0.0 || attenuation == 0.0) { // light source on the wrong side?
+					specularReflection = vec3(0.0, 0.0, 0.0); // no specular reflection
+				} else { // light source on the right side
+					specularReflection = attenuation * tex.rgb * pow(max(0.0, dot(reflect(-light_norm, normalize(normal)), -viewDirection)), shininess);
+				}
+
+
+				 tex.rgb = tex.rgb * (0.7) + tex.rgb * lightCol * lDotN * lightIntensity + specularReflection;
+				 //tex.rgb = tex.rgb * lightCol * lDotN * 1.0;
+
+
+				// tex.rgb = vec3( pos.y / 5000.0 ); // Altitude map
+				// tex.rgb = vec3( slope / 650.0 );	// Slope map
+
+
+				// tex.rgb += tex3.rgb * slope/650.0;
+				// tex.rgb = normalize(normal);
+
+				// tex.rgb = normal;
+				// tex.rgb = vec3(slope / 1024.0);
 
 				// tex.rb = vec2(abs(normal) / 250.0);
 				// tex.g  = abs(slope) / 250.0;
-				tex.a = 0.9;
+				// tex.a = 0.9;
 
-				tex.rgb = applyFog(tex.rgb, distance);
+				 //tex.rgb = applyFog(tex.rgb, distance);
 				// tex.rgb *= uColor;
 				gl_FragColor = tex;
 
