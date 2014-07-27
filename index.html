@@ -5,16 +5,9 @@
 	<!-- Scripts -->
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 	<script src="js/libs/underscore.js"></script>
-	<script src="js/libs/sylvester.js"></script>
-	<script src="js/libs/glUtils.js"></script>
 	<script src="js/libs/three.js"></script>
-	<script src="js/libs/random-0.26-debug.js"></script>
-	<!-- <script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script> -->
-	<!-- <script src="js/main.js"></script> -->
 
 	<!-- Stylesheets -->
-	<!-- <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css"> -->
-	<!-- <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css"> -->
 	<link rel="stylesheet" type="text/css" href="style.css">
 	
 </head>
@@ -33,7 +26,6 @@
 			attribute vec3 aVertexPosition;
 			attribute vec4 aVertexSlope;
 
-			//uniform vec3 viewDirection;
 			uniform mat4 uMVMatrix;
 			uniform mat4 uVMatrix;
 			uniform mat4 uPMatrix;
@@ -44,49 +36,19 @@
 
 			varying vec3 normal;
 			varying float slope;
-			varying vec3 band; // {x: height-band, y: height alpha, z: slope alpha}
+			varying float zband;
 
 			void main(void) {
 				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexPosition, 1.0); 
 				gl_Position = position;
+
 				pos = aVertexPosition.xyz;
 				depth = aVertexPosition.y/50.0;
 				distance = sqrt(position.x*position.x + position.z*position.z + position.y*position.y);
 
 				normal = aVertexSlope.xyz;
 				slope = aVertexSlope.w;
-
-
-				// Texture synthesis
-				// 	4 [5000+] snow, ice
-				// 	3 [4000,5000] snow-mud, volcano
-				// 	2 [1000,4000] canyon, deep-cave
-				// 	1 [100,1000] bison, rocky
-				// 	0 [100-] dirt
-
-				float band0 = 100.0;
-				float band1 = 700.0;
-				float band2 = 4000.0;
-				float band3 = 5000.0;
-				float band4 = 7000.0;
-				if (pos.y > band3) {
-					band.x = 4.0;
-					band.y = clamp((pos.y - band3) / (band4 - band3), 0.0, 1.0);
-				} else if (pos.y > band2) {
-					band.x = 3.0;
-					band.y = clamp((pos.y - band2) / (band3 - band2), 0.0, 1.0);
-				} else if (pos.y > band1) {
-					band.x = 2.0;
-					band.y = clamp((pos.y - band1) / (band2 - band1), 0.0, 1.0);
-				} else if (pos.y > band0) {
-					band.x = 1.0;
-					band.y = clamp((pos.y - band0) / (band1 - band0), 0.0, 1.0);
-				} else {
-					band.x = 0.0;
-					band.y = clamp((pos.y) / (band0), 0.0, 1.0);
-				}
-
-				band.z = clamp(slope / 800.0, 0.0, 1.0);
+				zband = clamp(slope / 800.0, 0.0, 1.0);
 
 			}
 		</script>
@@ -116,8 +78,9 @@
 
 			varying vec3 normal;
 			varying float slope;
-			varying vec3 band;
+			varying float zband;
 
+			// Per-fragment fog
 			vec3 applyFog( in vec3  rgb,       // original color of the pixel
 						  in float distance ) // camera to point distance
 			{
@@ -127,115 +90,127 @@
 				return mix( rgb, fogColor, fogAmount );
 			}
 
+			// Triplanar texture mapping
 			vec4 triPlanar( sampler2D tex, vec3 coords, vec3 normal ) {
 				vec4 color = texture2D( tex, mod(coords.xy, 1.0) ) * normal.z + texture2D( tex, mod(coords.xz, 1.0) ) * normal.y + texture2D( tex, mod(coords.yz, 1.0) ) * normal.x;
-				// color /= 3.0;
 				return color;
 			}
-//
-// Description : Array and textureless GLSL 2D/3D/4D simplex 
-//               noise functions.
-//      Author : Ian McEwan, Ashima Arts.
-//  Maintainer : ijm
-//     Lastmod : 20110822 (ijm)
-//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
-//               Distributed under the MIT License. See LICENSE file.
-//               https://github.com/ashima/webgl-noise
-// 
 
-vec3 mod289(vec3 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0;
-}
+			//////////////////////////////////////////////////////////////////
+			//	
+			//	Using GLSL simplex noise from Ashima Arts
+			//
+			// Description : Array and textureless GLSL 2D/3D/4D simplex 
+			//               noise functions.
+			//      Author : Ian McEwan, Ashima Arts.
+			//  Maintainer : ijm
+			//     Lastmod : 20110822 (ijm)
+			//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
+			//               Distributed under the MIT License. See LICENSE file.
+			//               https://github.com/ashima/webgl-noise
+			// 
 
-vec4 mod289(vec4 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0;
-}
+				vec3 mod289(vec3 x) {
+				  return x - floor(x * (1.0 / 289.0)) * 289.0;
+				}
 
-vec4 permute(vec4 x) {
-     return mod289(((x*34.0)+1.0)*x);
-}
+				vec4 mod289(vec4 x) {
+				  return x - floor(x * (1.0 / 289.0)) * 289.0;
+				}
 
-vec4 taylorInvSqrt(vec4 r)
-{
-  return 1.79284291400159 - 0.85373472095314 * r;
-}
+				vec4 permute(vec4 x) {
+					 return mod289(((x*34.0)+1.0)*x);
+				}
 
-float snoise(vec3 v)
-  { 
-  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+				vec4 taylorInvSqrt(vec4 r)
+				{
+				  return 1.79284291400159 - 0.85373472095314 * r;
+				}
 
-// First corner
-  vec3 i  = floor(v + dot(v, C.yyy) );
-  vec3 x0 =   v - i + dot(i, C.xxx) ;
+				float snoise(vec3 v)
+				  { 
+				  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+				  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
-// Other corners
-  vec3 g = step(x0.yzx, x0.xyz);
-  vec3 l = 1.0 - g;
-  vec3 i1 = min( g.xyz, l.zxy );
-  vec3 i2 = max( g.xyz, l.zxy );
+				// First corner
+				  vec3 i  = floor(v + dot(v, C.yyy) );
+				  vec3 x0 =   v - i + dot(i, C.xxx) ;
 
-  //   x0 = x0 - 0.0 + 0.0 * C.xxx;
-  //   x1 = x0 - i1  + 1.0 * C.xxx;
-  //   x2 = x0 - i2  + 2.0 * C.xxx;
-  //   x3 = x0 - 1.0 + 3.0 * C.xxx;
-  vec3 x1 = x0 - i1 + C.xxx;
-  vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
-  vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+				// Other corners
+				  vec3 g = step(x0.yzx, x0.xyz);
+				  vec3 l = 1.0 - g;
+				  vec3 i1 = min( g.xyz, l.zxy );
+				  vec3 i2 = max( g.xyz, l.zxy );
 
-// Permutations
-  i = mod289(i); 
-  vec4 p = permute( permute( permute( 
-             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+				  //   x0 = x0 - 0.0 + 0.0 * C.xxx;
+				  //   x1 = x0 - i1  + 1.0 * C.xxx;
+				  //   x2 = x0 - i2  + 2.0 * C.xxx;
+				  //   x3 = x0 - 1.0 + 3.0 * C.xxx;
+				  vec3 x1 = x0 - i1 + C.xxx;
+				  vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+				  vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
 
-// Gradients: 7x7 points over a square, mapped onto an octahedron.
-// The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
-  float n_ = 0.142857142857; // 1.0/7.0
-  vec3  ns = n_ * D.wyz - D.xzx;
+				// Permutations
+				  i = mod289(i); 
+				  vec4 p = permute( permute( permute( 
+							 i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+						   + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+						   + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
-  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+				// Gradients: 7x7 points over a square, mapped onto an octahedron.
+				// The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+				  float n_ = 0.142857142857; // 1.0/7.0
+				  vec3  ns = n_ * D.wyz - D.xzx;
 
-  vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+				  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
 
-  vec4 x = x_ *ns.x + ns.yyyy;
-  vec4 y = y_ *ns.x + ns.yyyy;
-  vec4 h = 1.0 - abs(x) - abs(y);
+				  vec4 x_ = floor(j * ns.z);
+				  vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
 
-  vec4 b0 = vec4( x.xy, y.xy );
-  vec4 b1 = vec4( x.zw, y.zw );
+				  vec4 x = x_ *ns.x + ns.yyyy;
+				  vec4 y = y_ *ns.x + ns.yyyy;
+				  vec4 h = 1.0 - abs(x) - abs(y);
 
-  //vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;
-  //vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;
-  vec4 s0 = floor(b0)*2.0 + 1.0;
-  vec4 s1 = floor(b1)*2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.0));
+				  vec4 b0 = vec4( x.xy, y.xy );
+				  vec4 b1 = vec4( x.zw, y.zw );
 
-  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+				  //vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;
+				  //vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;
+				  vec4 s0 = floor(b0)*2.0 + 1.0;
+				  vec4 s1 = floor(b1)*2.0 + 1.0;
+				  vec4 sh = -step(h, vec4(0.0));
 
-  vec3 p0 = vec3(a0.xy,h.x);
-  vec3 p1 = vec3(a0.zw,h.y);
-  vec3 p2 = vec3(a1.xy,h.z);
-  vec3 p3 = vec3(a1.zw,h.w);
+				  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+				  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
 
-//Normalise gradients
-  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-  p0 *= norm.x;
-  p1 *= norm.y;
-  p2 *= norm.z;
-  p3 *= norm.w;
+				  vec3 p0 = vec3(a0.xy,h.x);
+				  vec3 p1 = vec3(a0.zw,h.y);
+				  vec3 p2 = vec3(a1.xy,h.z);
+				  vec3 p3 = vec3(a1.zw,h.w);
 
-// Mix final noise value
-  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-  m = m * m;
-  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
-                                dot(p2,x2), dot(p3,x3) ) );
-  }
+				//Normalise gradients
+				  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+				  p0 *= norm.x;
+				  p1 *= norm.y;
+				  p2 *= norm.z;
+				  p3 *= norm.w;
+
+				// Mix final noise value
+				  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+				  m = m * m;
+				  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+												dot(p2,x2), dot(p3,x3) ) );
+				  }
+
+			//	
+			//	
+			//////////////////////////////////////////////////////////////////
+
+
 
 			void main(void) {
+
+				// TODO: allow switching between triPlanar mapping and XZ mapping
 
 				// vec3 blending = abs( normal );
 				// blending = normalize(max(blending, 0.00001)); // Force weights to sum to 1.0
@@ -246,26 +221,40 @@ float snoise(vec3 v)
 				// vec4 tex2 = triPlanar( fault, pos*0.001, blending );
 				// vec4 tex3 = triPlanar( canyon, pos*0.01,  blending );
 
-				// TODO: apply detail texture to each fetch
+
+
+
 				vec4 colBase1;
 				vec4 colBase2;
 				vec4 colSlope1;
 				vec4 colSlope2;
 				vec4 colDetail;
-				float texBaseScale = 0.005;
-				float texBaseScale2 = -0.0005;
-				float texSlopeScale = 0.001;
+				float texBaseScale   = 0.005;
+				float texBaseScale2  = -0.0005;
+				float texSlopeScale  = 0.001;
 				float texSlopeScale2 = -0.0001;
 				float texDetailScale = texBaseScale*8.0;
 
-				// 	4 [5000+] snow, ice
-				// 	3 [4000,5000] snow-mud, volcano
-				// 	2 [1000,4000] canyon, deep-cave
-				// 	1 [100,1000] bison, rocky
-				// 	0 [100-] dirt
+
+				// Texture Synthesis Bands
+				//
+				// 	Texture synthesis is applied in 2 fields: height and slope
+				// 	The height band determines which texture band we're working
+				// 	in, while the slope determines which texture we use within
+				// 	that band. To avoid cutoff lines, I apply a fading effect
+				// 	between texture/slope bands using linear interpolation
+				//
+				//
+				//	Bands
+				// 	4 [6000+] snow, ice
+				// 	3 [6000,6000] snow
+				// 	3 [3000,5000] snow-mud, volcano
+				// 	2 [700,3000] canyon, deep-cave
+				// 	1 [500,700] bison, rocky
+				// 	0 [500-] dirt
 				float bx;
 				float by;
-				float bz = band.z;
+				float bz = zband;
 				float bMult;
 				float band0 = 500.0;
 				float band1 = 700.0;
@@ -273,8 +262,7 @@ float snoise(vec3 v)
 				float band3 = 5000.0;
 				float band4 = 6000.0;
 				float band5 = 10000.0;
-				vec2 steepSlopePos = vec2( pos.y, max(pos.x , pos.z)); // TODO: adds really cool effects when
-											// used in place of pos.xz on steep slopes (mountains)
+				vec2 steepSlopePos = vec2( pos.y, max(pos.x , pos.z)); // Allow sideways UV mapping on steep slopes; this is an artifact which can be exploited to make a stretched out look on the mountain slopes
 				vec3 norm = normalize(normal);
 				if (pos.y > band4) {
 					bx = 5.0;
@@ -295,19 +283,21 @@ float snoise(vec3 v)
 					bx = 0.0;
 					by = clamp((pos.y) / (band0), 0.0, 1.0);
 				}
-				float scaleRocks = 2.0;
-				float scaleRocks2 = 4.0;
-				float scaleCave  = 0.5;
-				float scaleVolcano = 3.0;
+				float scaleRocks     = 2.0;
+				float scaleRocks2    = 4.0;
+				float scaleCave      = 0.5;
+				float scaleVolcano   = 3.0;
 
 				float lightIntensity = 1.0;
-				float attenuation = 0.0;
-				float shininess = 0.0;
+				float attenuation    = 0.0;
+				float shininess      = 0.0;
 
 				// TODO: tinting the cave texture on the mountain to closely match the rocks..
 				vec4 tintRock = vec4(1.0,1.0,1.0,1.0)*0.2;
-				vec4 tintCave = vec4(1.0,1.0,1.0,1.0)*1.0;// vec4( 56.0/250.0, 50.0/250.0, 40.0/250.0, 1.0 ) * 2.0;
-				//vec4 tintCave = vec4( 56.0/250.0, 50.0/250.0, 40.0/250.0, 1.0 ) * 1.2;
+				vec4 tintCave = vec4(1.0,1.0,1.0,1.0)*1.0;
+				//vec4 tintCave = vec4( 56.0/250.0, 50.0/250.0, 40.0/250.0, 1.0 ) * 1.2;//2.0
+
+
 				if (bx < 1.0) {
 
 					colBase1 = texture2D( fault, pos.xz * texBaseScale );
@@ -367,7 +357,7 @@ float snoise(vec3 v)
 
 					colDetail = texture2D( gravel, pos.xz * texDetailScale );
 					bMult =1.8;
-					lightIntensity = 1.0;//(0.6 - 1.0) * (by - 1.0) + 0.6;
+					lightIntensity = 1.0;
 					attenuation = 0.2;
 					shininess = 5.0;
 
@@ -407,6 +397,11 @@ float snoise(vec3 v)
 
 				}
 
+
+
+
+				// TODO: noise-based bumpmapping & lighting turbulence
+
 				// float alpha = snoise(pos * 0.1);
 				// float alpha2 = snoise(pos * 0.0001) * 0.2;
 
@@ -424,66 +419,58 @@ float snoise(vec3 v)
 
 
 
+
+
+				// Synthesize the texture w/ linear interpolation in heightband & slope
+				// TODO: add detail texture (per height-band)
 				vec4 texBase = colBase1 * (1.0 - by) + colBase2 * by;
 				vec4 texSlope = colSlope1 * (1.0 - by) + colSlope2 * by;
-				// vec4 tex = texSlope;
-
 				vec4 tex = texBase * (1.0 - bz) + texSlope * bz;
 				tex *= bMult;
 				// tex *= colDetail * 2.0;
 
-				// tex = vec4(band, 1.0);
-				// tex.r /= 4.0;
 
 
-
-				// vec4 tex1 = texture2D(fault, pos.xz*0.01);
-				// vec4 tex2 = texture2D(deepcave, pos.xz*0.001);
-
-				// vec4 tex = tex1 * tex2 * 2.0;
-
+				// Diffuse lighting
 				vec3 lightCol = vec3(1.0, 1.0, 1.0);
-				//vec3 lightCol = vec3(0.9, 0.7, 0.1);
-				//vec3 light_pos = vec3(pos.x-300.0, pos.y+180.0, pos.z-300.0);
-				//vec3 light_norm = normalize(light_pos-pos);
 				vec3 light_norm = normalize(vec3(-4.0, -1.0, 4.0));
 				float lDotN = max(dot(norm, -light_norm), 0.0) * 1.0;
 
 
-				// Specular
-				vec3 specularReflection;
+				// Specular lighting
+				vec3 specular;
 				if (lDotN < 0.0 || attenuation == 0.0) { // light source on the wrong side?
-					specularReflection = vec3(0.0, 0.0, 0.0); // no specular reflection
+					specular = vec3(0.0, 0.0, 0.0); // no specular reflection
 				} else { // light source on the right side
-					specularReflection = attenuation * tex.rgb * pow(max(0.0, dot(reflect(-light_norm, norm), -viewDirection)), shininess);
+					specular = attenuation * tex.rgb * pow(max(0.0, dot(reflect(-light_norm, norm), -viewDirection)), shininess);
 				}
 
 
-				 tex.rgb = tex.rgb * (0.7) + tex.rgb * lightCol * lDotN * lightIntensity + specularReflection;
-				 //tex.rgb = tex.rgb * lightCol * lDotN * 1.0;
+				tex.rgb = tex.rgb * (0.7) + tex.rgb * lightCol * lDotN * lightIntensity + specular;
+				tex.rgb = applyFog(tex.rgb, distance);
 
 
+				////////////////////////////////////////////////////
+				//
+				// TEXTURE MAPS FOR QUICK VISUALIZATION
+				//
+				//
+				//
 				// tex.rgb = vec3( pos.y / 5000.0 ); // Altitude map
+				// tex.rgb = norm; // Normal map
 				// tex.rgb = vec3( slope / 650.0 );	// Slope map
+				//
+				//
+				// tex.rgb *= uColor; // LOD map
+				//
+				//
+				//
+				////////////////////////////////////////////////////
 
 
-				// tex.rgb += tex3.rgb * slope/650.0;
-				// tex.rgb = normalize(normal);
 
-				// tex.rgb = normal;
-				// tex.rgb = vec3(slope / 1024.0);
 
-				// tex.rb = vec2(abs(normal) / 250.0);
-				// tex.g  = abs(slope) / 250.0;
-				// tex.a = 0.9;
-
-				 tex.rgb = applyFog(tex.rgb, distance);
-				// tex.rgb *= uColor;
 				gl_FragColor = tex;
-
-				// gl_FragColor = texture2D(uSampler, vec2( mod(pos.x*0.01,1.0) , mod(gl_FragCoord.z*0.01,1.0) ));
-				// gl_FragColor = vec4( gl_FragCoord.z*depth, 1.0, 1.0, 1.0 );
-
 
 			}
 		</script>
@@ -530,6 +517,7 @@ float snoise(vec3 v)
 			void main(void) {
 				vec4 tex;
 
+				// TODO: apply fog to skybox?
 				tex = textureCube(TexSampler, texPos);
 				// tex.rgb = applyFog(tex.rgb, distance);
 				gl_FragColor = tex;
@@ -540,10 +528,7 @@ float snoise(vec3 v)
 		<script src="js/viewport.js"></script>
 		<script>
 			$(document).ready(function(){
-				//initWebGL();
-				//draw();
 				generateImage();
-				// updateCanvas();
 				initViewport();
 				begin();
 
@@ -578,6 +563,7 @@ float snoise(vec3 v)
 				var updateMove = function(){
 					if (UI.viewport.isMoving) {
 
+						// Which way are we moving?
 						var move = UI.viewport.move,
 							movement = UI.viewport.isMoving;
 						move.x = 0; move.y = 0; move.z = 0;
@@ -588,17 +574,7 @@ float snoise(vec3 v)
 						if ( movement & MOVE_UP )       move.y -= 1;
 						if ( movement & MOVE_DOWN )     move.y += 1;
 
-						// var qX = new THREE.Quaternion(),
-						// 	qY = new THREE.Quaternion();
-						// qX.setFromAxisAngle( new THREE.Vector3(0,1,0), Objects.camera.phi );
-						// qY.setFromAxisAngle( new THREE.Vector3(1,0,0), -Objects.camera.theta );
-						// qX.multiply(qY);
-						// qX.z *= -1;
-						// move.applyQuaternion(qX);
-
-						// var euler = new THREE.Euler( -Objects.camera.theta, Objects.camera.phi, 0 );
-						// move.applyEuler(euler);
-
+						// What direction are we looking?
 						var qX = new THREE.Quaternion(),
 							qY = new THREE.Quaternion(),
 							qZ = new THREE.Quaternion(),
@@ -611,30 +587,33 @@ float snoise(vec3 v)
 						m.makeRotationFromQuaternion(qY);
 						m.getInverse(m);
 						move.applyMatrix4(m);
-						// move.applyQuaternion(qY);
 
+						// Are we running?
 						move.x *= -1;
 						if ( movement & MOVE_RUNNING ) move.multiplyScalar(1000);
 						else move.multiplyScalar(100);
+
+						// Apply the movement
 						Objects.camera.position.add(move);
 						updateCamera();
-
 						position.y = Objects.camera.position.z/Settings.scaleXZ;
 						position.x = Objects.camera.position.x/Settings.scaleXZ;
 
+						// Update the world if necessary
 						var time = (new Date()).getTime();
-						if (time - UI.lastWorldUpdate > 50) {
+						if (time - UI.lastWorldUpdate > 400) {
 							UI.lastWorldUpdate = time;
 							world.update();
 						}
-						// updateCanvas();
+
 					}
 
-					setTimeout(updateMove, 100);
+					setTimeout(updateMove, 50);
 				};
 
 				updateMove();
 
+				/* TODO: re-enable canvas for heightmap visualization
 				canvas.addEventListener('mousedown', function MouseDownEvent(evt){
 					var bounds  = canvas.getBoundingClientRect(),
 						mouseY  = evt.clientY - bounds.top,
@@ -668,13 +647,13 @@ float snoise(vec3 v)
 						UI.mouse.position.y = mouseY;
 
 						var time = (new Date()).getTime();
-						if (time - UI.lastWorldUpdate > 50) {
+						if (time - UI.lastWorldUpdate > 400) {
 							UI.lastWorldUpdate = time;
 							world.update();
 						}
-						// updateCanvas();
 					}
 				});
+				*/
 
 				viewportCanvas.addEventListener('mousedown', function MouseDownEvent(evt){
 
@@ -733,10 +712,6 @@ float snoise(vec3 v)
 							Objects.camera.theta += deltaY*0.0005;
 							if (Objects.camera.theta > Math.PI) Objects.camera.theta = Math.PI;
 							if (Objects.camera.theta < -Math.PI)Objects.camera.theta = -Math.PI;
-							// Objects.camera.theta = Objects.camera.theta % (Math.PI*1.0);
-							// if (Objects.camera.theta < 0) Objects.camera.theta = Math.PI*1.0 - 0.001;
-							// if (Objects.camera.phi < 0) Objects.camera.phi = Math.PI*2.0 - 0.001;
-
 
 							updateCamera();
 
