@@ -9,6 +9,8 @@
 			aspectRatio  : null,
 			scaleXZ      : 1.0,
 			useLOD       : true
+			quadSize     : 6200,
+			viewRadius   : 20000,// 60000,
 	},  Objects = {
 			camera : { position : new THREE.Vector3(0,0,0), },
 			quads  : { },
