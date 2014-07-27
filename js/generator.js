@@ -115,7 +115,6 @@ var canvas    = document.getElementById('heightmap'),
 				// 	quad     = obj.quad;
 				// // console.log("Quad generated: "+quad.heightmap.data.length);
 				// delete myWorker;
-				// world.workers_working--;
 				// // setTimeout(updateCanvas, 500);
 
 				// var time = (new Date()).getTime();
@@ -341,8 +340,6 @@ var World = function(){
 	this.quadRadius = 2*Math.sqrt(this.quadSize/2)
 
 	var world = this;
-	this.workers_working=0;
-	this.workers_created=0;
 
 	////////////////////////////////////////////////////
 	//
@@ -405,8 +402,6 @@ var World = function(){
 
 					var time = (new Date()).getTime();
 					var myWorker = new Worker("js/generatorWorker.js");
-					world.workers_working++;
-					world.workers_created++;
 
 					myWorker.addEventListener("message", function (oEvent) {
 						// console.log("Called back by the worker!\n");

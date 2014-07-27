@@ -1,161 +1,251 @@
 
-var canvas = null,
-	gl     = null,
-	Camera = { position: null },
-	Shaders = {
-		main: {
-			program: null,
-			vertex: {
-				program: null,
-				type:null,
-				id:'shader-vs',
-				attributes:{
-					aVertexPosition:null
-				}
-			}, fragment: {
-				program: null,
-				type: null,
-				id: 'shader-fs'
-			}
-		},
-		skybox: {
-			program: null,
-			vertex: {
-				program: null,
-				type:null,
-				id:'skybox-vs',
-				attributes:{
-					aVertexPosition:null
-				}
-			}, fragment: {
-				program: null,
-				type: null,
-				id: 'skybox-fs'
-			}
+	var Settings = {
+			framerate    : 45,
+			fov          : 75,
+			nearPlane    : 1,
+			farPlane     : 300000.0,
+			canvasWidth  : null,
+			canvasHeight : null,
+			aspectRatio  : null,
+			scaleXZ      : 1.0,
+			useLOD       : true
+	},  Objects = {
+			camera : { position : new THREE.Vector3(0,0,0), },
+			quads  : { },
+	}, LOD_Spaces = {
+		0: Math.pow(6200,2),
+		1: Math.pow(2*6200,2),
+		2: Math.pow(3*6200,2),
+		3: Math.pow(4*6200,2),
+		// 4: Math.pow(9000,2),
+		// 5: Math.pow(12000,2),
+	};
+
+
+
+	$(document).ready(function(){
+		generateImage();
+		initViewport();
+		drawScene();
+
+		window['world'] = world;
+
+
+		var MOVE_FORWARD  = 1<<0,
+			MOVE_BACKWARD = 1<<1,
+			MOVE_LEFT     = 1<<2,
+			MOVE_RIGHT    = 1<<3,
+			MOVE_UP       = 1<<4,
+			MOVE_DOWN     = 1<<5,
+			MOVE_RUNNING  = 1<<6;
+		var UI = {
+			viewport: {
+				mouse: {
+					position: {x:0,y:0},
+					buttons: 0,
+					target: new THREE.Vector3(0,0,0),
+					phi: 0.0,
+				},
+				move: new THREE.Vector3(0,0,0),
+				isMoving: 0
+			},
+			mouse: {
+				isDown: false,
+				position: {x:0, y:0}
+			},
+			lastWorldUpdate: (new Date()).getTime(),
 		}
-	},
-	Settings = {
-		framerate: 45,
-		fov: 45,
-		nearPlane: 0.1,
-		farPlane: 100.0,
-		canvasWidth: null,
-		canvasHeight: null,
-		aspectRatio: null
-	};
 
+		var updateMove = function(){
+			if (UI.viewport.isMoving) {
 
-	var initWebGL = function(){
+				// Which way are we moving?
+				var move = UI.viewport.move,
+					movement = UI.viewport.isMoving;
+				move.x = 0; move.y = 0; move.z = 0;
+				if ( movement & MOVE_FORWARD )  move.z += 1;
+				if ( movement & MOVE_BACKWARD ) move.z -= 1;
+				if ( movement & MOVE_LEFT )     move.x -= 1;
+				if ( movement & MOVE_RIGHT )    move.x += 1;
+				if ( movement & MOVE_UP )       move.y -= 1;
+				if ( movement & MOVE_DOWN )     move.y += 1;
 
-			canvas = document.getElementById('canvas');
-			gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-			if (!gl) {
-				throw new Error("Unable to initialize WebGL. Your browser may not support it.");
-			}
+				// What direction are we looking?
+				var qX = new THREE.Quaternion(),
+					qY = new THREE.Quaternion(),
+					qZ = new THREE.Quaternion(),
+					m = new THREE.Matrix4();
+				qX.setFromAxisAngle( new THREE.Vector3(0,1,0), -Objects.camera.phi );
+				qY.setFromAxisAngle( new THREE.Vector3(-1,0,0),-Objects.camera.theta );
+				qZ.setFromAxisAngle( new THREE.Vector3(0,0,1), Objects.camera.lambda );
+				qY.multiply(qX);
+				qY.multiply(qZ);
+				m.makeRotationFromQuaternion(qY);
+				m.getInverse(m);
+				move.applyMatrix4(m);
 
-			Settings.canvasWidth = $(canvas).width();
-			Settings.canvasHeight = $(canvas).height();
-			Settings.aspectRatio = Settings.canvasWidth / Settings.canvasHeight;
+				// Are we running?
+				move.x *= -1;
+				if ( movement & MOVE_RUNNING ) move.multiplyScalar(1000);
+				else move.multiplyScalar(100);
 
-			// Initialize shader program
-			Shaders.main.fragment.type = gl.FRAGMENT_SHADER;
-			Shaders.main.vertex.type   = gl.VERTEX_SHADER;
-			Shaders.main.program       = gl.createProgram(); // Initialize GL Program
+				// Apply the movement
+				Objects.camera.position.add(move);
+				updateCamera();
+				position.y = Objects.camera.position.z/Settings.scaleXZ;
+				position.x = Objects.camera.position.x/Settings.scaleXZ;
 
-			Shaders.skybox.fragment.type = gl.FRAGMENT_SHADER;
-			Shaders.skybox.vertex.type   = gl.VERTEX_SHADER;
-			Shaders.skybox.program       = gl.createProgram();
-
-
-			// Compile, Attach and Link shaders to GL Programs
-			_.each(Shaders, function(shaderProgram, shaderName){
-				_.each(shaderProgram, function(shader, name){
-					if (name === 'program') return;
-					var shaderSrc = document.getElementById(shader.id).text,
-						shaderObject = null;
-
-					// Compile shader
-					if (!shaderSrc) throw new Error("Could not find shader source for shader: " + name);
-					shaderObject = gl.createShader(shader.type);
-					gl.shaderSource(shaderObject, shaderSrc);
-					gl.compileShader(shaderObject);
-
-					// Did it compile successfully?
-					if (!gl.getShaderParameter(shaderObject, gl.COMPILE_STATUS)) {
-						throw new Error("An error occurred compiling the shader: " + gl.getShaderInfoLog(shaderObject));
-					}
-
-					gl.attachShader(Shaders.program, shaderObject);
-
-				});
-
-				gl.linkProgram(shaderProgram.program);
-				if (!gl.getProgramParameter(shaderProgram.program, gl.LINK_STATUS)) {
-					throw new Error("Unable to initialize shader program");
+				// Update the world if necessary
+				var time = (new Date()).getTime();
+				if (time - UI.lastWorldUpdate > 400) {
+					UI.lastWorldUpdate = time;
+					world.update();
 				}
 
-				gl.useProgram(shaderProgram.program);
+			}
 
+			setTimeout(updateMove, 50);
+		};
 
-				// Enable each vertex attribute
-				_.each(shaderProgram.vertex.attributes, function(attribute, name){
-					vertexAttribute = gl.getAttribLocation(shaderProgram.program, name);
-					gl.enableVertexAttribArray(vertexAttribute);
-					shaderProgram.vertex.attributes[name] = vertexAttribute;
-				});
+		updateMove();
 
-			});
+		/* TODO: re-enable canvas for heightmap visualization
+		canvas.addEventListener('mousedown', function MouseDownEvent(evt){
+			var bounds  = canvas.getBoundingClientRect(),
+				mouseY  = evt.clientY - bounds.top,
+				mouseX  = evt.clientX - bounds.left;
 
-
-			// Prepare the canvas
-			gl.clearColor(0.0, 0.0, 0.0, 1.0);                      // Set clear color to black, fully opaque
-			gl.enable(gl.DEPTH_TEST);                               // Enable depth testing
-			gl.depthFunc(gl.LEQUAL);                                // Near things obscure far things
-			gl.viewport(0, 0, canvas.width, canvas.height);
-
-	},
-
-	updateCamera = function(){
-
-		// TODO: Abstract this with camera, only set uniform upon moving camera
-		var perspectiveMatrix = makePerspective(Settings.fov, Settings.aspectRatio, Settings.nearPlane, Settings.farPlane);
-
-		var mvMatrix = Matrix.I(4),
-		camPosition = Camera.position.elements;
-		mvMatrix = makeLookAt(camPosition[0], camPosition[1], camPosition[2],
-							  0.0, 0.0, 0.0,
-							  0.0, 1.0, 0.0);
-
-		_.each(Shaders, function(shader, shaderName){
-			var pUniform = gl.getUniformLocation(shader.program, "uPMatrix");
-			gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
-
-			var mvUniform = gl.getUniformLocation(shader.program, "uMVMatrix");
-			gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
-
-			var widthUniform = gl.getUniformLocation(shader.program, "screenWidth");
-			gl.uniform1f(widthUniform, false, Settings.canvasWidth);
-
-			var heightUniform = gl.getUniformLocation(shader.program, "screenHeight");
-			gl.uniform1f(heightUniform, false, Settings.canvasHeight);
+			UI.mouse.isDown = true;
+			UI.mouse.position.x = mouseX;
+			UI.mouse.position.y = mouseY;
 		});
-	},
 
-	createCamera = function(position, focalPoint){
-		Camera.position = position;
-		Camera.direction = $V([ 0, 0, 1 ]);
-	},
+		canvas.addEventListener('mouseup', function MouseUpEvent(evt){
+			UI.mouse.isDown = false;
+		});
+
+		canvas.addEventListener('mousemove', function MouseMoveEvent(evt){
+			if (UI.mouse.isDown) {
+				var bounds  = canvas.getBoundingClientRect(),
+					mouseY  = evt.clientY - bounds.top,
+					mouseX  = evt.clientX - bounds.left,
+					deltaY  = 1.7*2*(mouseY - UI.mouse.position.y),
+					deltaX  = 1.7*(mouseX - UI.mouse.position.x);
+
+				position.y += deltaY;
+				position.x += deltaX;
+
+				Objects.camera.position.x = Settings.scaleXZ*position.x;
+				Objects.camera.position.z = Settings.scaleXZ*position.y;
+				updateCamera();
+
+				UI.mouse.position.x = mouseX;
+				UI.mouse.position.y = mouseY;
+
+				var time = (new Date()).getTime();
+				if (time - UI.lastWorldUpdate > 400) {
+					UI.lastWorldUpdate = time;
+					world.update();
+				}
+			}
+		});
+		*/
+
+		viewportCanvas.addEventListener('mousedown', function MouseDownEvent(evt){
+
+			var bounds  = viewportCanvas.getBoundingClientRect(),
+				mouseY  = evt.clientY - bounds.top,
+				mouseX  = evt.clientX - bounds.left;
+
+			UI.viewport.mouse.position.x = mouseX;
+			UI.viewport.mouse.position.y = mouseY;
+
+			var MOUSE_LOOK = 4,
+				MOUSE_MOVE = 1 | MOUSE_LOOK;
+			UI.viewport.mouse.buttons |= (1<<evt.button);
+			if ((UI.viewport.mouse.buttons & MOUSE_MOVE) === MOUSE_MOVE) {
+				UI.viewport.isMoving |= MOVE_FORWARD;
+			} else if ((UI.viewport.mouse.buttons & MOUSE_LOOK) === MOUSE_LOOK) {
+
+			}
+
+			evt.preventDefault();
+			return false;
+
+		});
+		viewportCanvas.oncontextmenu = function(){ return false; };
+
+		viewportCanvas.addEventListener('mouseup', function MouseUpEvent(evt){
+
+			var MOUSE_LOOK = 4,
+				MOUSE_MOVE = 1 | MOUSE_LOOK;
+			UI.viewport.mouse.buttons = UI.viewport.mouse.buttons & ~(1<<evt.button);
+			if ((UI.viewport.mouse.buttons & MOUSE_MOVE) !== MOUSE_MOVE) {
+				UI.viewport.isMoving &= ~MOVE_FORWARD;
+			}
+
+			evt.preventDefault();
+			return false;
+
+		});
+
+		viewportCanvas.addEventListener('mousemove', function MouseMoveEvent(evt){
+
+			var MOUSE_LOOK = 4;
+			if (UI.viewport.mouse.buttons & MOUSE_LOOK) {
+
+				var bounds  = viewportCanvas.getBoundingClientRect(),
+					mouseY  = evt.clientY - bounds.top,
+					mouseX  = evt.clientX - bounds.left,
+					deltaY  = 1.7*2*(mouseY - UI.viewport.mouse.position.y),
+					deltaX  = 1.7*(mouseX -   UI.viewport.mouse.position.x);
 
 
-	draw = function(){
 
-			// clear scene
-			gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);      // Clear the color as well as the depth buffer.
+					Objects.camera.phi += deltaX*0.001;
+					Objects.camera.phi = Objects.camera.phi % (Math.PI*2.0);
 
-			gl.bindBuffer(gl.ARRAY_BUFFER, bufferPoints);
-			gl.vertexAttribPointer(Shaders.vertex.attributes['aVertexPosition'], 3, gl.FLOAT, false, 0, 0);
-			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+					Objects.camera.theta += deltaY*0.0005;
+					if (Objects.camera.theta > Math.PI) Objects.camera.theta = Math.PI;
+					if (Objects.camera.theta < -Math.PI)Objects.camera.theta = -Math.PI;
 
-			setTimeout(draw, 100);
-			// requestAnimationFrame(draw);
-	};
+					updateCamera();
+
+
+				UI.viewport.mouse.position.x = mouseX;
+				UI.viewport.mouse.position.y = mouseY;
+			}
+
+		});
+
+		document.addEventListener('keydown', function KeyDownEvent(evt){
+			
+				   if (evt.keyCode === 87) {
+				UI.viewport.isMoving |= MOVE_BACKWARD;
+			} else if (evt.keyCode === 65) {
+				UI.viewport.isMoving |= MOVE_LEFT;
+			} else if (evt.keyCode === 68) {
+				UI.viewport.isMoving |= MOVE_RIGHT;
+			} else if (evt.keyCode === 83) {
+				UI.viewport.isMoving |= MOVE_UP;
+			} else if (evt.keyCode === 16) {
+				UI.viewport.isMoving |= MOVE_RUNNING;
+			}
+		});
+
+		document.addEventListener('keyup', function KeyUpEvent(evt){
+			
+				   if (evt.keyCode === 87) {
+				UI.viewport.isMoving &= ~MOVE_BACKWARD;
+			} else if (evt.keyCode === 65) {
+				UI.viewport.isMoving &= ~MOVE_LEFT;
+			} else if (evt.keyCode === 68) {
+				UI.viewport.isMoving &= ~MOVE_RIGHT;
+			} else if (evt.keyCode === 83) {
+				UI.viewport.isMoving &= ~MOVE_UP;
+			} else if (evt.keyCode === 16) {
+				UI.viewport.isMoving &= ~MOVE_RUNNING;
+			}
+		});
+
+	});
