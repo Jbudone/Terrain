@@ -15,14 +15,14 @@ var 	viewport = null,
 			}
 	},  Settings = {
 			framerate: 45,
-			fov: 45,
+			fov: 35,
 			nearPlane: 1,
-			farPlane: 50000.0,
+			farPlane: 300000.0,
 			canvasWidth: null,
 			canvasHeight: null,
 			aspectRatio: null,
 			scaleXZ: 1.0,
-			useLOD: false
+			useLOD: true
 	},  Objects = {
 			camera:{
 				position:new THREE.Vector3(0,0,0),
@@ -471,10 +471,10 @@ var 	viewport = null,
 	},
 
 	LOD_Spaces = {
-		0: Math.pow(6561,2),
-		1: Math.pow(2*6561,2),
-		2: Math.pow(3*6561,2),
-		3: Math.pow(4*6561,2),
+		0: Math.pow(6200,2),
+		1: Math.pow(2*6200,2),
+		2: Math.pow(3*6200,2),
+		3: Math.pow(4*6200,2),
 		// 4: Math.pow(9000,2),
 		// 5: Math.pow(12000,2),
 	},
@@ -835,7 +835,8 @@ var 	viewport = null,
 
 		setTimeout(drawScene, Settings.framerate);
 
-		if (generatedQuadQueue.length) {
+		while (generatedQuadQueue.length) {
+		// if (generatedQuadQueue.length) {
 
 				var obj = generatedQuadQueue.shift();
 
@@ -848,10 +849,27 @@ var 	viewport = null,
 
 				var time = (new Date()).getTime();
 				bufferQuad(quad);
+
+				delete quad.points;
+				delete quad.slopes;
+				for (var i=0; i<quad.elements.length; ++i) {
+					if (quad.elements[i]) {
+						var elements = quad.elements[i].elements;
+						if (elements) {
+							for (var el in elements) {
+								delete elements[el].data;
+							}
+						}
+					}
+				}
+
 				var endTime = (new Date()).getTime();
 				// console.log("Time buffering Quad: "+(endTime-time));
 				--workersWorking;
-				clearedThisQuad = true;
+				if (workersWorking < 0) {
+					workersWorking = 0;
+				}
+				// clearedThisQuad = true;
 				quad.updating = false;
 				// setTimeout(checkWorkerQueue, 100);
 		}
@@ -883,7 +901,6 @@ var 	viewport = null,
 
 
 		Objects.quads[quad.hash] = quad;
-		quad.vao = null;
 		// Objects.quads[quad.hash] = { x:quad.x, y:quad.y, points:quad.points, elements:[] };
 		for (var lodLevel=quad.loadedLOD.min; lodLevel<=quad.loadedLOD.max; ++lodLevel) {
 			var lSpace = quad.elements[lodLevel];
@@ -903,11 +920,11 @@ var 	viewport = null,
 			for (var bufferName in lSpace.elements) {
 			// for (var bufferName in last.elements) {
 				var buffer = lSpace.elements[bufferName];
-				if (buffer.vao) gl.deleteBuffer( buffer.vao );
+				if (buffer.vao) gl.deleteBuffer( buffer.vao ); // NOTE: need to rebuffer existing elements since they will point to an older verticesBuffer
 
 				buffer.vao = gl.createBuffer();
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer), gl.STATIC_DRAW);
+				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.data), gl.STATIC_DRAW);
 			}
 		}
 		if (Objects.quads[quad.hash].verticesBuffer) gl.deleteBuffer( Objects.quads[quad.hash].verticesBuffer );

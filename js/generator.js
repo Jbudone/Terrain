@@ -16,11 +16,15 @@
 //	> heightmap: random boulders
 //	> various detail textures?
 // 	> fix LOD base 3?
+// 	> optimize GLSL stuff
+// 	> more LOD's w/ dynamic LOD & clear older LOD
+// 	> GLSL: get rid of annoying sparkly stuff from far away
+// 	> over-bright snow-band; emphasis on lighting on steep mountain slopes
+// 	> fix annoying LOD holes & flickering; shouldn't have to load full LOD range in 1 go
 // 	> maximize viewRadius, quadSize & sections; determine based off of if LOD is used, memory consumption; try
 // 			to see far enough to always see mountains in the distance; fix fog
-// 	> try dynamic LOD w/ larger quads?
-// 	> optimize GLSL stuff
-// 	> over-bright snow-band; emphasis on lighting on steep mountain slopes
+// 		- stable (SLOW): 6200/70000 20/10000
+// 		- stable (FAST): 6200/60000 4/800
 //
 //
 //
@@ -41,6 +45,7 @@
 // 	> safe fail (modernizr) check if browser supports these: webworkers, canvas, webgl, transferableobjects
 // 	> NOTE: quadSize (speed: 8192, quality: 1024) -- cant fix without using INT elements, not supported yet
 // 	> build script (console.log for debug mode)
+// 	> https://github.com/ashima/webgl-noise/wiki  :: converted to JS, fixed, reference; ask to be on his site
 //
 //	> generate heightmap & world points & elements at the same time (same loop)
 // 	> smoother movement
@@ -55,10 +60,8 @@
 // 	> BUG: voronoi noise with negative numbers
 // 	> BUG: when moving really fast along the canvas, sometimes missing quads occur 
 // 	> BUG: quads being unloaded twice
-// 	> BUG: scalability between quadsize, section count, and LOD's  (using fixed numbers until patched)
 // 	> BUG: quad edges show up as west(right), east(left)
 // 	> BUG: glsl flickering effect along band-lines
-// 	> FIXME: putting elements and vao in same arraybuffer (NOT OKAY!)
 //
 // 	> Presentation: LOD; Powers of 2 vs. 3; Noise blending
 
@@ -70,17 +73,41 @@ var canvas    = document.getElementById('heightmap'),
 	loadQuadQueue = [],
 	generatedQuadQueue = [],
 	workersWorking = 0,
+	quadSize = 6200,
+	viewRadius = 60000,
 	checkWorkerQueue = function(){
-		if (loadQuadQueue.length && workersWorking < 2) {
-			var loadInfo = loadQuadQueue.shift(),
+		if (loadQuadQueue.length && workersWorking < 4) {
+
+			// Pick the closest quad to us
+			var nearestLoadInfo = null,
+				nearestDistance = 999999,
+				nearestI = 0;
+			for (var i=0; i<loadQuadQueue.length; ++i) {
+				var quadI = loadQuadQueue[i].quad,
+					distance = distanceFromQuad( quadI.x, quadI.y );
+				if (nearestLoadInfo == null || distance < nearestDistance) {
+					nearestLoadInfo = loadQuadQueue[i];
+					nearestDistance = distance;
+					nearestI = i;
+				}
+			}
+
+			loadQuadQueue.splice( nearestI, 1 );
+
+			var loadInfo = nearestLoadInfo,
 				quad = loadInfo.quad,
 				clearedThisQuad = false;
 			++workersWorking;
-			loadInfo.range.min = 0;
-			if (Settings.useLOD) loadInfo.range.max = 6;
+			// loadInfo.range.min = 0;
+			if (Settings.useLOD) loadInfo.range.max = 6; // FIXME
 			else loadInfo.range.max = 0;
 			quad.generate(loadInfo.range).then(function(obj){
-				generatedQuadQueue.push(obj);
+				if (obj.quad) {
+					generatedQuadQueue.push(obj);
+				} else if (quad) {
+					quad.updating = false;
+				}
+				clearedThisQuad = true;
 				// var myWorker = obj.myWorker,
 				// 	quad     = obj.quad;
 				// // console.log("Quad generated: "+quad.heightmap.data.length);
@@ -98,11 +125,13 @@ var canvas    = document.getElementById('heightmap'),
 				// // setTimeout(checkWorkerQueue, 100);
 			});
 
-			setTimeout(function(){ if (!clearedThisQuad){ --workersWorking; quad.updating=false; } }, 8000); // TODO: remove this bug
+			setTimeout(function(){ if (!clearedThisQuad){ quad.updating=false; console.error("Quad was not cleared.."); } }, 8000); // TODO: remove this bug
+			checkWorkerQueue();
 		}
 	};
 
-	setInterval( checkWorkerQueue, 10 );
+	setTimeout(checkWorkerQueue, 100);
+	setInterval( checkWorkerQueue, 800 );
 
 	var generateImage = function(){
 		canvas.width  = 500;
@@ -177,7 +206,7 @@ var World = function(){
 
 	this.hashQuad = function(x, y){ return x + y*274783; }; // TODO: better hash 
 
-	this.viewRadius = 16000;//1850;
+	this.viewRadius = viewRadius;//16000;//1850;
 	this.initialize = function(){
 
 		console.log("INITIALIZING!!!  ...("+world.quadSize+")");
@@ -305,7 +334,7 @@ var World = function(){
 	// this.edgeList = []; // Quads which are partially inside/outside the viewable range
 
 		// FIXME JB: TEST LOD3
-	this.quadSize = 6200;//4216;//6561;//2048;//8192;
+	this.quadSize = quadSize;//6200;//4216;//6561;//2048;//8192;
 	this.quadRadius = 2*Math.sqrt(this.quadSize/2)
 
 	var world = this;
@@ -436,7 +465,10 @@ var World = function(){
 									};
 
 								for (var elementsName in el) {
-									elements.elements[elementsName] = new Uint16Array(el[elementsName]);
+									if (elementsName == "lodSections" ||
+										elementsName == "lodLevel") continue;
+									elements.elements[elementsName] = {data: new Uint16Array(el[elementsName])};
+									elements.elements[elementsName].length = elements.elements[elementsName].data.length;
 								}
 								quad.elements[el.lodLevel] = elements;
 
@@ -458,6 +490,9 @@ var World = function(){
 							// quad.heightmap.data = oEvent.data.heightmap;
 
 							// resolve(oEvent.data.heightmap);
+						} else {
+							// Quad has already been deleted (too old)
+							resolve({myWorker: this, quad: null});
 						}
 
 					}, false);

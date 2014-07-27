@@ -553,7 +553,7 @@ onmessage = function (oEvent) {
 				xi <= sections+efixSections && yi <= sections+efixSections) {
 
 				var height = null;
-				if (loadedLOD !== null &&
+				if (false && loadedLOD !== null && // FIXME
 					xi % LOD_Spaces[loadedLOD].lodSections == 0 &&
 					yi % LOD_Spaces[loadedLOD].lodSections == 0) {
 
