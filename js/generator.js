@@ -74,7 +74,7 @@ var canvas    = document.getElementById('heightmap'),
 	generatedQuadQueue = [],
 	workersWorking = 0,
 	quadSize = 6200,
-	viewRadius = 60000,
+	viewRadius = 20000,// 60000,
 	checkWorkerQueue = function(){
 		if (loadQuadQueue.length && workersWorking < 4) {
 
@@ -106,6 +106,9 @@ var canvas    = document.getElementById('heightmap'),
 					generatedQuadQueue.push(obj);
 				} else if (quad) {
 					quad.updating = false;
+					--workersWorking;
+				} else {
+					--workersWorking;
 				}
 				clearedThisQuad = true;
 				// var myWorker = obj.myWorker,
