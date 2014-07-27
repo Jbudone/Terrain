@@ -1,16 +1,23 @@
 
 	var Settings = {
-			framerate    : 45,
-			fov          : 75,
-			nearPlane    : 1,
-			farPlane     : 300000.0,
-			canvasWidth  : null,
-			canvasHeight : null,
-			aspectRatio  : null,
-			scaleXZ      : 1.0,
-			useLOD       : true
-			quadSize     : 6200,
-			viewRadius   : 20000,// 60000,
+			framerate            : 45,
+			fov                  : 75,
+			nearPlane            : 1,
+			farPlane             : 300000.0,
+			canvasWidth          : null,
+			canvasHeight         : null,
+			aspectRatio          : null,
+
+			scaleXZ              : 1.0,
+			scaleY_World         : 1000.0,
+			scaleSteepness_World : 50*256,
+			scaleNormal_World    : 1.0,
+			useLOD               : false,
+			quadSize             : 6200,
+			viewRadius           : 20000,// 60000,
+
+			seed1                : 280,
+			seed2                : 289
 	},  Objects = {
 			camera : { position : new THREE.Vector3(0,0,0), },
 			quads  : { },

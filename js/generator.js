@@ -15,7 +15,6 @@
 //		(next week nice-to-have)
 //	> heightmap: random boulders
 //	> various detail textures?
-// 	> fix LOD base 3?
 // 	> optimize GLSL stuff
 // 	> more LOD's w/ dynamic LOD & clear older LOD
 // 	> GLSL: get rid of annoying sparkly stuff from far away
@@ -28,6 +27,9 @@
 // 	> git
 // 	> https://github.com/ashima/webgl-noise/wiki  :: converted to JS, fixed, reference; ask to be on his site
 //	> FIREFOX support
+//	> CLEAN: LOD base 3
+//	> CLEAN: transferring points/slopes/normals
+//	> CLEAN: normal calculation && confirm accuracy and usage in GLSL 
 //
 //
 //
@@ -45,6 +47,7 @@
 // 	> safe fail (modernizr) check if browser supports these: webworkers, canvas, webgl, transferableobjects
 // 	> NOTE: quadSize (speed: 8192, quality: 1024) -- cant fix without using INT elements, not supported yet
 // 	> build script (console.log for debug mode)
+//	> fix seed number for variation in terrain
 //
 //	> generate heightmap & world points & elements at the same time (same loop)
 // 	> smoother movement
@@ -407,6 +410,12 @@ var World = function(){
 					}, false);
 
 					workerDetails = {
+						seed1:Settings.seed1,
+						seed2:Settings.seed2,
+						scaleXZ:Settings.scaleXZ,
+						scaleY_World:Settings.scaleY_World,
+						scaleSteepness_World:Settings.scaleSteepness_World,
+						scaleNormal_World:Settings.scaleNormal_World,
 						x:my.x,
 						y:my.y,
 						quadSize:world.quadSize,

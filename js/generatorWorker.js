@@ -1,82 +1,22 @@
 
 onmessage = function (oEvent) {
 
+	var seed1 = oEvent.data.seed1,
+		seed2 = oEvent.data.seed2;
 
-	var simplex = new Simplex(280.0);
-	var voronoi = new Voronoi();
+
+
+	var simplex = new Simplex(seed1);
+	var voronoi = new Voronoi(seed2);
 	var logged = 0;
 	var getHeightAt = function(point) {
 
-		/*  NOTES
-		 *  TODO: valleys on the mountain peaks
-		 *
-		 *  Sand Dunes
-		 *
-				height = 0.25*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 ), 0.75, -0.2 );
-				height *= 1.0 - Math.abs(voronoi.noise(point.x*0.001, point.y*0.001).y);
-
-
-			Mountains
-
-		   		// (rounded hills)
-				height = Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 );
-				height *= Math.pow( 1.0 - Math.abs(voronoi.noise(point.x*0.0001, point.y*0.0001).x) + 0.35, 1.5 );
-				height /= 2.0;
-
-			   	// (tall ridges & peaks)
-				height += Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 ) * Math.pow( Math.abs(voronoi.noise(point.x*0.0001, point.y*0.0001).y) + 0.35, 1.5 );
-
-			Valley
-
-				height = 40*Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-
-			Hills
-
-
-				height = 0.75*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 4, 9 ), 0.35, 0.0 );
-				height *= 1.0 - Math.abs(voronoi.noise(point.x*0.001, point.y*0.001).y);
-				height /= 2;
-		 *
-		 *
-		 **/
-
-		// var scale = 0.01;
-			// height = voronoi.noise( point.x*scale, point.y*scale );
-			// height = height.x;
-
-			// var scale = 0.001;
-			// height = Math.abs(simplex.noise( point.x*scale, point.y*scale ));
-			// height = height * height * height;
-			// height += Math.pow(voronoi.noise( point.x * scale, point.y * scale ).y, 2.0);
-			// height -= 0.8;
-			// height = Math.abs(height);
-
-		   /*
-		   	height =  Math.abs(0.5*simplex.noise( point.x*0.1/5, point.y*0.1/5 ));
-			height += Math.abs(5*simplex.noise( point.x*0.01/5, point.y*0.01/5 ));
-			// height += Math.abs(10*simplex.noise( point.x*0.01/5, point.y*0.01/5 ));
-			// height += Math.abs(50*simplex.noise( point.x*0.001/5, point.y*0.001/5 ));
-			height += Math.abs(50*simplex.noise( point.x*0.0008/5, point.y*0.0008/5 ));
-			height /= 60;
-			// height += Math.abs(100*simplex.noise( point.x*0.0008/5, point.y*0.0008/5 ));
-			// height /= 160;
-			// height += 1;
-			// height /= 2;
-			*/
-
-	   	// height = Math.abs(voronoi.noise(point.x*0.001, point.y*0.001).x);
 		var height = 0.0;
-		// var selector = Math.abs(voronoi.noise(point.x*0.0007, point.y*0.0007).y);
-
-
-		var turbulence = Noise.basicTurbulence( simplex, {x:point.x*0.1, y:point.y*0.1}, 2, 4 );
-		selector = 1.0 - selector;
-		var selector = Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.001, y:point.y*0.001}, 2, 3 ), 2.8, -0.45 );
-		// selector += Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.01, y:point.y*0.01}, 2, 7 ), 0.5, -1 );
+			turbulence = Noise.basicTurbulence( simplex, {x:point.x*0.1, y:point.y*0.1}, 2, 4 );
+			selector = Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.001, y:point.y*0.001}, 2, 3 ), 2.8, -0.45 );
 		if (selector < 0) selector = 0;
 		if (selector > 1) selector = 1;
 
-		// if (selector > 0.8) {
 			
 
 		/////
@@ -177,144 +117,9 @@ onmessage = function (oEvent) {
 
 
 
-
-
-
-
-
 		height = mountains + valley + hills + dunes;// - pebbles;
 
 
-
-
-
-
-
-
-
-
-
-
-		// } else if (selector > 0.3) {
-
-		// 	height = 2;
-
-			// height = 0.5 *  Math.abs( simplex.noise(point.x * 0.001, point.y * 0.001) );
-			// height += 0.5 * Math.abs( simplex.noise(point.x * 0.001, point.y * 0.001) );
-			// height += 10 *  Math.abs( simplex.noise(point.x * 0.0001, point.y * 0.0001) );
-			// height += 20 *  Math.abs( simplex.noise(point.x * 0.00005, point.y * 0.00005) );
-
-			// height /= 12;
-
-			// // if (height < 0.5) {
-			// // 	height = 0.1*simplex.noise(point.x * 0.01, point.y * 0.01);
-			// // }
-
-			// height = (selector - 0.3) / (0.8 - 0.3) * height;
-
-		// } else {
-
-		// 	height = 1;
-			/*
-			height = 0.5 * simplex.noise(point.x * 0.001, point.y * 0.001);
-			height += 0.5 * simplex.noise(point.x * 0.001, point.y * 0.001);
-			height += 10 * simplex.noise(point.x * 0.0001, point.y * 0.0001);
-			height += 20 * simplex.noise(point.x * 0.00005, point.y * 0.00005);
-
-			height = Noise.flatten( height, 0.001, -0.5 );
-			*/
-		// }
-
-		// if (selector < 1.0) {
-		// 	height = 0;
-		// }
-		// height = selector;
-		// if (height < 1 && selector > 1.0) {
-		// 	height = 0;
-		// }
-
-		// height += (10 * simplex.noise(point.x * 0.0001 + 584, point.y * 0.0001 + 852) + 20 * simplex.noise(point.x * 0.00005 - 842, point.y * 0.00005 - 848));
-
-		// if (height < 0.5) {
-		// 	height += Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 2, 10);
-		// 	// var mountainValley = Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-		// 	// height += Math.abs(mountainValley);
-		// }
-		// height = 1.0 - selector;
-		// Mountains
-			// (rounded hills)
-			// if (height < 100) {
-			// 	var valley = 40*Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-			// 	height += valley;
-			// }
-
-			/*
-			var mountains = Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 4, 9 );
-			mountains *= Math.pow( 1.0 - Math.abs(voronoi.noise(point.x*0.0001, point.y*0.0001).x) + 0.35, 1.5 );
-			mountains /= 2.0;
-
-			// (tall ridges & peaks)
-			mountains += Noise.multifractalRidgid( simplex, {x:point.x*0.01, y:point.y*0.01}, 4, 9 ) * Math.pow( Math.abs(voronoi.noise(point.x*0.0001, point.y*0.0001).y) + 0.35, 1.5 );
-
-
-		// Valley
-			var valley = 40*Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-
-			var mountainValley = 40*Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-
-
-		height = (1.0 - selector) * valley + selector * mountains + selector * mountainValley;// Math.min(1.0, Math.max(0.0, selector));
-		*/
-
-	   /*
-               var turbulence = Noise.basicTurbulence( simplex, {x:point.x, y:point.y}, 2, 4 );
-               var height = 0.0;
-               var selector = voronoi.noise(point.x*0.0007, point.y*0.0007).y;
-               if (selector > 0.45 && selector < 0.55) {
-                       var height1 = 0.05*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x+1000,y:point.y+1000}, 5, 7 ), 0.20, -0.05 ),
-						   height2 = 0.25*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 ), 0.75, -0.2 );
-
-                       height = (selector - 0.45) / (0.55 - 0.45) * (height1 - height2) + height2;
-
-               } else if (selector > 0.55) {
-                       // Plains
-                       // height = Math.abs(turbulence);
-                       height = 0.05*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x+1000,y:point.y+1000}, 5, 7 ), 0.20, -0.05 );
-                       // var a = Noise.flatten( Math.abs(voronoi.noise(point.x*0.001, point.y*0.001).x), 0.02, 0.1 );
-                       // var b = Noise.flatten( Math.abs(voronoi.noise(point.x*0.01, point.y*0.01).x), 0.005, -0.05 );
-                       // height = height + a + b;
-                       height += voronoi.noise(point.x*0.005, point.y*0.005).x * 0.04;
-				} else {
-					height = 0.25*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 ), 0.75, -0.2 );
-				}
-
-			   */
-
-		/*
-		if (false && selector > 0.45 && selector < 0.55) {
-			// var height1 = 0.05*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x+1000, y:point.y+1000}, 5, 7 ), 0.20, -0.05 ),
-			// 	height2 = 0.25*turbulence + Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 ), 0.75, -0.2 );
-
-			// height = (selector - 0.45) / (0.55 - 0.45) * (height1 - height2) + height2;
-
-		} else if (selector > 0.60) {
-			// (rounded hills)
-			height = Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 );
-			height *= Math.pow( 1.0 - Math.abs(voronoi.noise(point.x*0.0001, point.y*0.0001).x) + 0.35, 1.5 );
-			height /= 2.0;
-
-			// (tall ridges & peaks)
-			height += Noise.multifractalRidgid( simplex, {x:point.x, y:point.y}, 5, 9 ) * Math.pow( Math.abs(voronoi.noise(point.x*0.0001, point.y*0.0001).y) + 0.35, 1.5 );
-		} else {
-			height = 40*Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-		}
-		*/
-		// height = Noise.selector( selector, height, turbulence*0.1 );
-	   // height = 0.1 * Noise.multifractalRidgid( simplex, {x:point.x*0.1, y:point.y*0.1}, 2, 3 );
-	   // height = Math.min(1.0, Math.abs(0.1*voronoi.noise(point.x*0.001, point.y*0.001).y));
-	   // height = 0.1*simplex.noise(point.x*0.001, point.y*0.001);
-	   	// height = 40*Noise.basicTurbulence( simplex, {x:point.x*0.0001, y:point.y*0.0001}, 2, 6);
-		// height *= Math.abs(voronoi.noise(point.x*0.001, point.y*0.001).x);
 		if (height < 0) height = 0;
 		return height;
 	};
@@ -367,15 +172,13 @@ onmessage = function (oEvent) {
 	};
 
 	var Settings = {
-		scaleY_Canvas: 10 * 200.0,
-		scaleY_World:  1000.0,
-		slopeNormalMeasure: 4,
+		scaleY_Canvas         : 10 * 200.0,
+		scaleY_World          : oEvent.data.scaleY_World,
+		scaleSteepness_Canvas : 50*256,
+		scaleSteepness_World  : oEvent.data.scaleSteepness_World,
 
-		scaleSteepness_Canvas: 50*256,
-		scaleSteepness_World: 50*256,
-
-		scaleNormal_Canvas: 500 * 250,
-		scaleNormal_World: 1*1,
+		scaleNormal_Canvas    : 500 * 250,
+		scaleNormal_World     : oEvent.data.scaleNormal_World
 	};
 
 	var NORTH = 1<<0,
@@ -393,16 +196,10 @@ onmessage = function (oEvent) {
 	// WARNING: lodSections MUST be divisible by the number of sections
 	var LOD_Space = function(lodSections){
 		this.lodSections = lodSections;
-		// this.elementsBuffer = new ArrayBuffer(2 * Math.floor(sections*sections / (lodSections*lodSections)) * 2 * 3);
-		// this.elements = new Uint16Array(this.elementsBuffer);
-		// this.ei = 0; // index into elements
 
 		this.elements = {
 
-			// inner: new LOD_Buffer(2 * Math.floor(sections*sections / (lodSections*lodSections)) * 2 * 3),
 			inner: new LOD_Buffer(2*(Math.pow(sections/lodSections - 2, 2) * 2 * 3)),
-
-			// Same LOD
 			top:    new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
 			left:   new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
 			right:  new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
@@ -410,6 +207,7 @@ onmessage = function (oEvent) {
 
 		};
 
+		// Skirts (lod for lower level)
 		if (lodSections >= 1) {
 			this.elements['top_L0'] =    new LOD_Buffer(2*((sections/lodSections - 2)*3 + 4)*3, NORTH);
 			this.elements['left_L0'] =   new LOD_Buffer(2*((sections/lodSections - 2)*3 + 4)*3, WEST);
@@ -422,25 +220,15 @@ onmessage = function (oEvent) {
 	var quadSize = oEvent.data.quadSize,
 		quadX = oEvent.data.x,
 		quadY = oEvent.data.y,
-		lodRange = oEvent.data.lodRange;
+		lodRange = oEvent.data.lodRange,
 
-		// FIXME JB: TEST LOD3
-	// var basePower = 3, // versus 2
-	// 	sections = 243, // NOTE: must divide the heightmap evenly
-	var basePower = 2,
+		basePower = 2,
 		sections = 248, // NOTE: must divide the heightmap evenly
-		efixSections = 0,
-		scaleXZ = -1.0,
-		// qLen = Math.floor((quadSize+1)/sections);
+		scaleXZ = -1.0*oEvent.data.scaleXZ,
 		qLen = Math.floor(quadSize/sections);
 
 
-	var LOD_Spaces = [
-		// FIXME JB: TEST LOD3
-			// new LOD_Space(1),
-			// new LOD_Space(3),
-			// new LOD_Space(9),
-			// new LOD_Space(27),
+		LOD_Spaces = [
 			new LOD_Space(1),
 			new LOD_Space(2),
 			new LOD_Space(4),
@@ -448,21 +236,16 @@ onmessage = function (oEvent) {
 			// new LOD_Space(16),
 			// new LOD_Space(32),
 			// new LOD_Space(64),
-	];
+		];
 
 	/////////////////////
 	// Generate Heightmap
 	///////////////////////////
 
-	// var pointsBuffer = new ArrayBuffer(4*sections*sections*2*3*3),
-	// 	points = new Float32Array(pointsBuffer),//Objects.quads[quad.hash].points,
-	// 	elementsBuffer = new ArrayBuffer(2*sections*sections*2*3),
-	// var pointsBuffer = new ArrayBuffer(4*(sections+1)*(sections+1)*3),
 	var pointsBuffer = null,
 		slopesBuffer = null,
 		loadedLOD    = null;
 	if (oEvent.data.points && oEvent.data.slopes) {
-		// console.log("Worker using transfered points&slopes");
 		pointsBuffer = oEvent.data.points;
 		slopesBuffer = oEvent.data.slopes;
 		loadedLOD    = oEvent.data.pointsLOD;
@@ -479,22 +262,21 @@ onmessage = function (oEvent) {
 		lastZ = 0,
 		numRows = 0,
 		numCols = 0,
+
 		i=0,
 		ei=0,
+		si = 0,
+		snm = 1, // Normal/Slope compare offset
+
 		time_Height=0,
-		time_Elements=0;
-	// Generate set of triangles at given LOD 
-	// var canvas = document.createElementById('canvas'),
-	// 	ctx    = canvas.getContext('2d'),
-	// var arrayBuffer = new ArrayBuffer(4*(quadSize+1)*(quadSize+1));
-	// var heightmap = new Uint8Array(arrayBuffer);
-	// var heightmap = new ArrayBuffer(4*(quadSize+1)*(quadSize+1)); //ctx.createImageData( quadSize+1, quadSize+1 );
-	var i = 0, si = 0;
-	var BUFFER_INNER  = 1<<0,
+		time_Elements=0,
+
+		BUFFER_INNER  = 1<<0,
 		BUFFER_TOP    = 1<<1,
 		BUFFER_RIGHT  = 1<<2,
 		BUFFER_BOTTOM = 1<<3,
 		BUFFER_LEFT   = 1<<4;
+
 	var whichBufferSpace = function(point, lodSections){
 		// point: starts at (0,0) and ends at (quadSize+1,quadSize+1)
 		// lodSections: number of sections in this particular LOD space
@@ -516,8 +298,9 @@ onmessage = function (oEvent) {
 			mask |= BUFFER_INNER;
 		}
 		return mask;
-	};
-	var describeBufferSpace = function(mask){
+	},
+
+	describeBufferSpace = function(mask){
 		var str = "(";
 		if (mask & BUFFER_INNER) str += "INNER | ";
 		if (mask & BUFFER_TOP) str += "TOP | ";
@@ -528,29 +311,26 @@ onmessage = function (oEvent) {
 		return str;
 	};
 
-	lodRange.max = Math.min( LOD_Spaces.length-1, lodRange.max );
 
+
+
+
+
+
+
+
+
+	lodRange.max = Math.min( LOD_Spaces.length-1, lodRange.max );
 	var previouslyLoadedPointsCount = 0;
 	var numErrors = 0;
-	for (var y=quadY, yOff=0, yi=0; yi<=sections+efixSections; ++y, ++yOff) {
-		for (var x=quadX, xOff=0, xi=-1; xi<=sections+efixSections; ++x, ++xOff) {
-
-			/*
-			var height = getHeightAt({x: x, y: y});
-			var heightCanvas = height * Settings.scaleY_Canvas;
-			if (heightCanvas < 0) heightCanvas = 0;
-			if (heightCanvas > 255) heightCanvas = 255;
-			heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 0 ] = heightCanvas;
-			heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 1 ] = 0.0;
-			heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 2 ] = 0.0;
-			heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 3 ] = 255.0;
-			*/
+	for (var y=quadY, yOff=0, yi=0; yi<=sections; ++y, ++yOff) {
+		for (var x=quadX, xOff=0, xi=-1; xi<=sections; ++x, ++xOff) {
 
 			if (xOff % qLen == 0) ++xi;
 
 			if ((xOff % qLen == 0) &&
 				(yOff % qLen == 0) &&
-				xi <= sections+efixSections && yi <= sections+efixSections) {
+				xi <= sections && yi <= sections) {
 
 				var height = null;
 				if (false && loadedLOD !== null && // FIXME
@@ -579,11 +359,9 @@ onmessage = function (oEvent) {
 					points[i+1] = height * Settings.scaleY_World;
 					points[i+2] = y*scaleXZ;
 
-					// TODO: normals, slopes; IF left & down neighbours, use them for calculating; otherwise find
-					// previous heights
+					// normals, slopes; IF left & down neighbours, use them for calculating; otherwise find previous heights
 					var leftHeight   = 0.0,
-						bottomHeight = 0.0,
-						snm = 1;
+						bottomHeight = 0.0;
 					if (xi < snm ||
 					    ((xi-snm) % Math.min(LOD_Spaces[lodRange.min].lodSections, (loadedLOD!==null? LOD_Spaces[loadedLOD].lodSections : LOD_Spaces[lodRange.min].lodSections)) != 0) ) {
 						leftHeight = getHeightAt({x: x-snm*qLen, y: y});
@@ -634,13 +412,6 @@ onmessage = function (oEvent) {
 					slopes[si+2] = Math.abs(normal.z) * Settings.scaleNormal_World;
 					slopes[si+3] = steepness* Settings.scaleSteepness_World;
 
-					// if (height !== bottomHeight) {
-					// 	if (logged < 20) {
-					// 		console.log("height-bottomHeight: "+(height-bottomHeight));
-					// 		++logged;
-					// 	}
-					// }
-
 					var timeEnd = (new Date()).getTime();
 					time_Height += (timeEnd - time);
 
@@ -665,8 +436,7 @@ onmessage = function (oEvent) {
 								//
 								// 		 	n is the number of sections
 								L = lSpace.lodSections,
-								// n = sections+1,
-								n = sections+efixSections+1,
+								n = sections+1,
 								i4 = (yi*n + xi),
 								i3 = (yi*n + (xi-L)),
 								i2 = ((yi-L)*n + xi),
@@ -1126,7 +896,7 @@ onmessage = function (oEvent) {
 
 									}
 								} else {
-									console.error('!?');
+									console.error('Unsure which buffer space this element is in!?');
 								}
 
 						}
@@ -1144,11 +914,6 @@ onmessage = function (oEvent) {
 			}
 		}
 
-		// if (xi != sections &&
-		//     xi != 0 &&
-		//     xi != sections+1) {
-		// 	console.error("xi ("+xi+") !== sections ("+sections+")");
-		// }
 		if (yOff % qLen == 0) {
 			++yi;
 		}
@@ -1156,87 +921,16 @@ onmessage = function (oEvent) {
 
 
 
-	/////////////////////
-	// Generate World Points
-	///////////////////////////
-
-	/*
-	for (var y=offY, yi=0; yi<(quadSize+1)-qLen; y+=qLen, yi+=qLen) {
-		numCols = 0;
-		++numRows;
-		for (var x=offX, xi=0; xi<(quadSize+1)-qLen; x+=qLen, xi+=qLen) {
-			++numCols;
-			points[i+0]=(x*scaleXZ);         points[i+1]=( heightmap[(yi*(quadSize+1) + xi)*4 + 0 ] * scaleY );        points[i+2]=(y*scaleXZ);
-			points[i+3]=((x+qLen)*scaleXZ);  points[i+4]=( heightmap[(yi*(quadSize+1) + (xi+qLen))*4 + 0 ] * scaleY ); points[i+5]=(y*scaleXZ);
-			points[i+6]=(x*scaleXZ);         points[i+7]=( heightmap[((yi+qLen)*(quadSize+1) + xi)*4 + 0 ] * scaleY ); points[i+8]=((y+qLen)*scaleXZ);
-
-			points[i+9]=((x+qLen)*scaleXZ);  points[i+10]=( heightmap[(yi*(quadSize+1) + (xi+qLen))*4 + 0 ] * scaleY );        points[i+11]=(y*scaleXZ);
-			points[i+12]=((x+qLen)*scaleXZ); points[i+13]=( heightmap[((yi+qLen)*(quadSize+1) + (xi+qLen))*4 + 0 ] * scaleY ); points[i+14]=((y+qLen)*scaleXZ);
-			points[i+15]=(x*scaleXZ);        points[i+16]=( heightmap[((yi+qLen)*(quadSize+1) + xi)*4 + 0 ] * scaleY );        points[i+17]=((y+qLen)*scaleXZ);
-			console.log("     "+points.length+" points");
-
-			elements[ei+0]=ei+0;
-			elements[ei+1]=ei+1;
-			elements[ei+2]=ei+2;
-
-			elements[ei+3]=ei+3;
-			elements[ei+4]=ei+4;
-			elements[ei+5]=ei+5;
-
-			i+=18;
-			ei+=6;
-
-
-			// points.push(x*scaleXZ); points.push( heightmap[ (yi*quadSize + xi)*4 + 0 ] * scaleY ); points.push(y*scaleXZ);
-			// points.push((x+qLen)*scaleXZ); points.push( heightmap[ (yi*quadSize + (xi+qLen))*4 + 0 ] * scaleY ); points.push(y*scaleXZ);
-			// points.push(x*scaleXZ); points.push( heightmap[ ((yi+qLen)*quadSize + xi)*4 + 0 ] * scaleY ); points.push((y+qLen)*scaleXZ);
-
-			// points.push((x+qLen)*scaleXZ); points.push( heightmap[ (yi*quadSize + (xi+qLen))*4 + 0 ] * scaleY ); points.push(y*scaleXZ);
-			// points.push((x+qLen)*scaleXZ); points.push( heightmap[ ((yi+qLen)*quadSize + (xi+qLen))*4 + 0 ] * scaleY ); points.push((y+qLen)*scaleXZ);
-			// points.push(x*scaleXZ); points.push( heightmap[ ((yi+qLen)*quadSize + xi)*4 + 0 ] * scaleY ); points.push((y+qLen)*scaleXZ);
-
-			numQuads++;
-			lastZ = y*scaleXZ;
-		}
-	}
-
-
-
-	console.log("Quad points: "+points.length+"/"+i+"/"+(sections*sections*2*3*3));
-	*/
-
-
-	// console.log("points: "+i);
-	// if (previouslyLoadedPointsCount) console.log("SAVED LOADING ("+previouslyLoadedPointsCount+") POINTS!");
-	// if (numErrors) console.log("SAVED POINTS WHICH WERE 0's ("+numErrors+")");
-	// console.log("Time generating heights: "+time_Height);
-	// console.log("Time generating elements: "+time_Elements);
-   // for (var lSpacei=lodRange.min; lSpacei<=lodRange.max; ++lSpacei) {
-	   // console.log("Inner (L"+lSpacei+"): "+LOD_Spaces[lSpacei].elements.inner.ei);
-   // }
-   // console.log("Inner (L2): "+LOD_Spaces[1].elements.inner.ei);
-   // console.log("Inner (L3): "+LOD_Spaces[2].elements.inner.ei);
-   // console.log("Inner (L4): "+LOD_Spaces[3].elements.inner.ei);
 
 	var data = {
 		"hash": oEvent.data.hash,
-		// "heightmap": arrayBuffer,
 		"points": pointsBuffer,
 		"slopes": slopesBuffer,
 		"elements": [],
-		// "elements": {
-		// 	"inner":    LOD_Spaces[2].elements.inner.elementsBuffer,
-		// 	"top":      LOD_Spaces[2].elements.top.elementsBuffer,
-		// 	"bottom":   LOD_Spaces[2].elements.bottom.elementsBuffer,
-		// 	"left":     LOD_Spaces[2].elements.left.elementsBuffer,
-		// 	"right":    LOD_Spaces[2].elements.right.elementsBuffer,
-		// }
-		// "elements": elementsBuffer
 	};
 	
 	var elements = [],
 		transferObjects = [data.points, data.slopes];
-		// transferObjects = [data.heightmap, data.points, data.slopes];
 
 	for (var lSpacei=lodRange.min; lSpacei<=lodRange.max; ++lSpacei) {
 		var lSpace = LOD_Spaces[lSpacei],
@@ -1250,35 +944,42 @@ onmessage = function (oEvent) {
 			transferObjects.push( lSpace_Obj[ lSpace_Li ] );
 		}
 		data.elements.push( lSpace_Obj );
-		/*
-		data.elements.push({
-			elements: {
-				"inner":    lSpace.elements.inner.elementsBuffer,
-				"top":      lSpace.elements.top.elementsBuffer,
-				"bottom":   lSpace.elements.bottom.elementsBuffer,
-				"left":     lSpace.elements.left.elementsBuffer,
-				"right":    lSpace.elements.right.elementsBuffer,
-			},
-			lodSections: lSpace.lodSections,
-		});
-
-		var last = data.elements[data.elements.length-1].elements;
-		transferObjects.push(last.inner);
-		transferObjects.push(last.top);
-		transferObjects.push(last.left);
-		transferObjects.push(last.right);
-		transferObjects.push(last.bottom);
-		*/
 	}
 	
 
 	postMessage(data, transferObjects);
-	// postMessage(data, [data.heightmap, data.points, data.elements.inner, data.elements.top, data.elements.left, data.elements.right]);
 	self.close();
 }
 
 
-var Voronoi = function(){
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var Voronoi = function(seed){
 
 	this.noise = function(x,y){
 
@@ -1289,7 +990,7 @@ var Voronoi = function(){
 		var K = 0.142857142857, // 1/7
 			Ko = 0.428571428571, // 3/7
 			jitter = 1.0, // Less gives more regular pattern
-			magic = 289;
+			magic = seed;
 
 		var permute = function(x) {
 			return {
@@ -1385,118 +1086,12 @@ var Voronoi = function(){
 		return { x: Math.sqrt(d1.x), y: Math.sqrt(d1.y) };
 	};
 
-	/*
-	this.cellSize = 10;
-	this.grid = {};
-
-	this.noise = function(x,y){
-		x = Math.abs(x) + 1000;
-		y = Math.abs(y) + 1000;
-
-		// find square hash from x,y coord
-		var squareX = Math.floor(x/this.cellSize) + (x < 0? -1 : 0),
-			squareY = Math.floor(y/this.cellSize) + (y < 0? -1 : 0),
-			hash    = (x*1640531513 ^ y*2654435789) % 15485863;
-
-		var Grid = this.grid;
-
-		// TODO: find nearest cells in square and neighbour squares
-		var Square = function(x,y){
-			this.x = x;
-			this.y = y;
-			this.hash = (x*1640531513 ^ y*2654435789) % 15485863;
-
-			var r = new Random(hash);
-			this.cellcount = 1;// Math.floor(r.random() * 10);
-			this.cells = [];
-			for (var i=0; i<this.cellcount; ++i) {
-				this.cells.push({
-					x: ((r.random() * Math.pow(10,i)) << 2) % 10,
-					y: ((r.random() * Math.pow(10,i)) << 3) % 10
-				});
-			}
-
-			this.closestDistance = function(x,y) {
-
-				var nearestDistance = 999999.0,
-					nearestIndex    = 0;
-				for (var i=0; i<this.cells.length; ++i) {
-					var cell = this.cells[i],
-						diffX = x - cell.x,
-						diffY = y - cell.y;
-					if (diffX*diffX + diffY*diffY < nearestDistance) {
-						nearestDistance = diffX*diffX + diffY*diffY;
-						nearestIndex = i;
-					}
-				}
-
-				return Math.sqrt(nearestDistance);
-			};
-
-		};
-		var createSquare = function(x,y){
-			var hash = (x*1640531513 ^ y*2654435789) % 15485863;
-
-			if (Grid[hash]) return Grid[hash];
-			Grid[hash] = new Square(x,y);
-			return Grid[hash];
-		};
-		var t = this.cellSize;
-		var localgrid = {
-			squares: {
-				'northwest' : createSquare( squareX-t, squareY-t ),
-				'north'     : createSquare( squareX,   squareY-t ),
-				'northeast' : createSquare( squareX+t, squareY-t ),
-				'east'      : createSquare( squareX+t, squareY   ),
-				'southeast' : createSquare( squareX+t, squareY+t ),
-				'south'     : createSquare( squareX,   squareY+t ),
-				'southwest' : createSquare( squareX-t, squareY+t ),
-				'west'      : createSquare( squareX-t, squareY   ),
-				'center'    : createSquare( squareX,   squareY   )
-			}
-		};
-
-		var nearestDistance = 999999.0;
-		for (var square in localgrid.squares) {
-			var distance = localgrid.squares[square].closestDistance(x,y);
-			if (distance < nearestDistance) nearestDistance = distance;
-		}
-
-
-		return nearestDistance;
-	};
-	*/
-
-	// TODO:
-	// 	> split plane into grid
-	// 	> each grid gets a random number of points <--- SEED!!
-	// 	> hashshum for grid cell  (note: infinite width/height of world)
-	// 	> distribution function: Bridson's fast poisson disk sampling 
-	//
-	//
-	// 	NOTE: able to cache nearest hitpoints?
-
 };
 
 
-var Simplex = function(magic){
+var Simplex = function(seed){
 
-	this.magic = magic;
-
-	/*
-	vec3 mod289(vec3 x) {
-		return x - floor(x * (1.0 / 289.0)) * 289.0;
-	}
-
-	vec2 mod289(vec2 x) {
-		return x - floor(x * (1.0 / 289.0)) * 289.0;
-	}
-
-	vec3 permute(vec3 x) {
-		return mod289(((x*34.0)+1.0)*x);
-	}
-	*/
-
+	this.magic = seed;
 
 	this.permute = function(vec) {
 
