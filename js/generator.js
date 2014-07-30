@@ -8,9 +8,7 @@
 //	> fix fog stuff
 //
 //
-//		(weekend MUST DO)
-//	> CLEAN + DOCUMENT
-//	> Presentation w/ slides
+//
 //
 //		(next week nice-to-have)
 //	> heightmap: random boulders
@@ -30,6 +28,21 @@
 //	> CLEAN: LOD base 3
 //	> CLEAN: transferring points/slopes/normals
 //	> CLEAN: normal calculation && confirm accuracy and usage in GLSL 
+//
+//	> Report (guide for exploring/explaining the project)
+// 	> Presentation: LOD; short vs. int elements & sizes/quality; Noise blending; Where to go from here;
+// 	Webworkers/transferable objects/build queues/garbage collection sync; heightmap building process what
+// 	different noise looks like)
+//		- intro: what I did (infinite terrain generator) & what's involved (heightmap generation, polyganization + LOD, texture synthesis)
+//		- heightmap generation: basis noise functions, demo break of noise tricks
+//		- javascript: single threaded, offload quads to webworkers, transferable objects
+//		- webgl: want to see far - short/int limitation; memory/garbage collection limitation
+//		- LOD: idea to use LOD for future + skirts, demo LOD, LOD radius; sticking with LOD0 for now
+//				(loading/performance problems)
+//		- texture synthesis: height bands, slopes, linear interpolation, lighting, tinting, triplanar mapping,
+//							blending same texture different scales, detail texture  (demo break)
+//		- desirable texture synthesis: cool things I found & want
+// 		
 //
 //
 //
@@ -60,12 +73,11 @@
 // 	> BUG: some noise returns outside of range values
 // 	> BUG: tri's drawn double sided
 // 	> BUG: voronoi noise with negative numbers
+// 	> BUG: voronoi F2 noise
 // 	> BUG: when moving really fast along the canvas, sometimes missing quads occur 
 // 	> BUG: quads being unloaded twice
 // 	> BUG: quad edges show up as west(right), east(left)
 // 	> BUG: glsl flickering effect along band-lines
-//
-// 	> Presentation: LOD; Powers of 2 vs. 3; Noise blending
 
 var canvas             = document.getElementById('heightmap'),
 	ctx                = canvas.getContext('2d'),
@@ -75,8 +87,9 @@ var canvas             = document.getElementById('heightmap'),
 	loadQuadQueue      = [],
 	generatedQuadQueue = [],
 	workersWorking     = 0,
+	quadIndex          = 0,
 	checkWorkerQueue = function(){
-		if (loadQuadQueue.length && workersWorking < 4) {
+		if (loadQuadQueue.length && workersWorking < Settings.maxWorkers) {
 
 			// Pick the closest quad to us
 			var nearestLoadInfo = null,
@@ -101,9 +114,11 @@ var canvas             = document.getElementById('heightmap'),
 			// loadInfo.range.min = 0;
 			if (Settings.useLOD) loadInfo.range.max = 6; // FIXME
 			else loadInfo.range.max = 0;
+			console.log("["+quad.index+"] GENERATING QUAD");
 			quad.generate(loadInfo.range).then(function(obj){
 				if (obj.quad) {
 					generatedQuadQueue.push(obj);
+					console.log("["+quad.index+"] GENERATED QUAD");
 				} else if (quad) {
 					quad.updating = false;
 					--workersWorking;
@@ -144,7 +159,8 @@ var canvas             = document.getElementById('heightmap'),
 		for (var hash in world.quadCache) {
 			var quad = world.quadCache[hash];
 			if (quad.heightmap) {
-				ctx.putImageData( quad.heightmap, (-quad.x  + position.x) - canvas.width/4, (-quad.y   + position.y) - canvas.height/4, 0, 0, world.quadSize, world.quadSize );
+				ctx.putImageData( quad.heightmap, (-quad.x  + position.x) / (world.quadSize / Settings.quadTiles), (-quad.y   + position.y) / (world.quadSize / Settings.quadTiles), 0, 0, world.quadSize, world.quadSize );
+				// ctx.putImageData( quad.heightmap, (-quad.x  + position.x) / (world.quadSize / Settings.quadTiles) - canvas.width/4, (-quad.y   + position.y) / (world.quadSize / Settings.quadTiles) - canvas.height/4, 0, 0, world.quadSize, world.quadSize );
 			}
 		}
 
@@ -321,6 +337,7 @@ var World = function(){
 			max: null
 		};
 		this.updating = false;
+		this.index = quadIndex++;
 
 		// Is the quad in the viewable range: return FULL_INSIDE, FULL_OUTSIDE, PARTIAL_INSIDE
 		this.isInside = function(point, radius) {
@@ -367,16 +384,19 @@ var World = function(){
 					var myWorker = new Worker("js/generatorWorker.js");
 
 					myWorker.addEventListener("message", function (oEvent) {
-						// console.log("Called back by the worker!\n");
-
 
 						var time = (new Date()).getTime();
 						var quad = world.quadCache[oEvent.data.hash];
 						if (quad) {
-							var	points = new Float32Array(oEvent.data.points);
-							var	slopes = new Float32Array(oEvent.data.slopes);
+							var	points    = new Float32Array(oEvent.data.points),
+								slopes    = new Float32Array(oEvent.data.slopes),
+								heightmap = (oEvent.data.heightmap? new Uint8Array(oEvent.data.heightmap) : null);
 							quad.points = points;
 							quad.slopes = slopes;
+							if (heightmap) {
+								quad.heightmap = ctx.createImageData( Settings.quadTiles+1, Settings.quadTiles+1 );
+								quad.heightmap.data.set(heightmap);
+							}
 
 							for (var i=0; i<oEvent.data.elements.length; ++i) {
 								var el = oEvent.data.elements[i],
@@ -413,6 +433,7 @@ var World = function(){
 						seed1:Settings.seed1,
 						seed2:Settings.seed2,
 						scaleXZ:Settings.scaleXZ,
+						sections:Settings.quadTiles,
 						scaleY_World:Settings.scaleY_World,
 						scaleSteepness_World:Settings.scaleSteepness_World,
 						scaleNormal_World:Settings.scaleNormal_World,
@@ -420,21 +441,11 @@ var World = function(){
 						y:my.y,
 						quadSize:world.quadSize,
 						hash:my.hash,
-						lodRange:range
+						lodRange:range,
+						includeCanvas:(Settings.includeCanvas && range.min == 0),
 					};
 
 					transferringObjects = [];
-
-					if (my.points && my.slopes) {
-						workerDetails.points = my.points.buffer;
-						workerDetails.slopes = my.slopes.buffer;
-						workerDetails.pointsLOD = my.loadedLOD.min;
-
-						transferringObjects = [
-							workerDetails.points,
-							workerDetails.slopes ];
-
-					}
 
 					myWorker.postMessage(workerDetails, transferringObjects); // start the worker.
 
@@ -453,7 +464,7 @@ var World = function(){
 				if (this.neighbours.east)  delete this.neighbours.east.neighbours.west;
 
 				delete this.neighbours;
-				delete this.heightmap;
+				if (this.heightmap) delete this.heightmap;
 
 				clearQuad(this);
 

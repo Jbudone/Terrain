@@ -119,7 +119,6 @@ onmessage = function (oEvent) {
 
 		height = mountains + valley + hills + dunes;// - pebbles;
 
-
 		if (height < 0) height = 0;
 		return height;
 	};
@@ -172,13 +171,17 @@ onmessage = function (oEvent) {
 	};
 
 	var Settings = {
-		scaleY_Canvas         : 10 * 200.0,
+		scaleY_Canvas         : 250.0,
 		scaleY_World          : oEvent.data.scaleY_World,
 		scaleSteepness_Canvas : 50*256,
 		scaleSteepness_World  : oEvent.data.scaleSteepness_World,
 
-		scaleNormal_Canvas    : 500 * 250,
-		scaleNormal_World     : oEvent.data.scaleNormal_World
+		scaleNormal_Canvas    : 1 * 250,
+		scaleNormal_World     : oEvent.data.scaleNormal_World,
+
+		canvas_ShowHeight     : true,
+		canvas_ShowSlope      : true,
+		canvas_ShowNormal     : true
 	};
 
 	var NORTH = 1<<0,
@@ -223,8 +226,9 @@ onmessage = function (oEvent) {
 		lodRange = oEvent.data.lodRange,
 
 		basePower = 2,
-		sections = 248, // NOTE: must divide the heightmap evenly
+		sections = oEvent.data.sections,
 		scaleXZ = -1.0*oEvent.data.scaleXZ,
+		includeCanvas = oEvent.data.includeCanvas,
 		qLen = Math.floor(quadSize/sections);
 
 
@@ -242,20 +246,24 @@ onmessage = function (oEvent) {
 	// Generate Heightmap
 	///////////////////////////
 
-	var pointsBuffer = null,
-		slopesBuffer = null,
-		loadedLOD    = null;
+	var pointsBuffer    = null,
+		slopesBuffer    = null,
+		heightmapBuffer = null,
+		loadedLOD       = null;
 	if (oEvent.data.points && oEvent.data.slopes) {
-		pointsBuffer = oEvent.data.points;
-		slopesBuffer = oEvent.data.slopes;
-		loadedLOD    = oEvent.data.pointsLOD;
+		pointsBuffer    = oEvent.data.points;
+		slopesBuffer    = oEvent.data.slopes;
+		heightmapBuffer = oEvent.data.heightmap;
+		loadedLOD       = oEvent.data.pointsLOD;
 	} else {
-		pointsBuffer = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3);
-		slopesBuffer = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*4);
+		pointsBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3); // xyz position
+		slopesBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*4); // Normal & Steepness
+		if (includeCanvas) heightmapBuffer = new ArrayBuffer(4*(sections+1)*(sections+1));
 	}
 
 	var points = new Float32Array(pointsBuffer),
 		slopes = new Float32Array(slopesBuffer),
+		heightmap = (includeCanvas? new Uint8Array(heightmapBuffer) : null),
 		offX = quadX,
 		offY = quadY,
 		numQuads = 0,
@@ -321,10 +329,10 @@ onmessage = function (oEvent) {
 
 
 	lodRange.max = Math.min( LOD_Spaces.length-1, lodRange.max );
-	var previouslyLoadedPointsCount = 0;
-	var numErrors = 0;
-	for (var y=quadY, yOff=0, yi=0; yi<=sections; ++y, ++yOff) {
-		for (var x=quadX, xOff=0, xi=-1; xi<=sections; ++x, ++xOff) {
+	var previouslyLoadedPointsCount = 0,
+		numErrors = 0;
+	for (var y=quadY, yOff=0, yi=0; yi<=sections; y+=qLen, yOff+=qLen){//++y, ++yOff) {
+		for (var x=quadX, xOff=0, xi=-1; xi<=sections; x+=qLen, xOff+=qLen){//++x, ++xOff) {
 
 			if (xOff % qLen == 0) ++xi;
 
@@ -354,6 +362,16 @@ onmessage = function (oEvent) {
 
 					
 					height = getHeightAt({x: x, y: y});
+
+					if (includeCanvas) {
+						heightmap[ ((sections-xi) + (sections-yi) * (sections+1))*4 + 3 ] = 255.0;
+					}
+
+					if (includeCanvas && Settings.canvas_ShowHeight) {
+						var heightCanvas = height * Settings.scaleY_Canvas;
+						if (heightCanvas > 255) heightCanvas = 255;
+						heightmap[ ((sections-xi) + (sections-yi) * (sections+1))*4 + 0 ] = heightCanvas;
+					}
 
 					points[i+0] = x*scaleXZ;
 					points[i+1] = height * Settings.scaleY_World;
@@ -396,16 +414,20 @@ onmessage = function (oEvent) {
 
 
 					steepness = Math.max( Math.abs(height - leftHeight), Math.abs(height - bottomHeight) );
-					var steepCanvas = steepness * Settings.scaleSteepness_Canvas;
-					if (steepCanvas > 255) steepCanvas = 255;
-					// heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 1 ] = steepCanvas;
+					if (includeCanvas && Settings.canvas_ShowSlope) {
+						var steepCanvas = steepness * Settings.scaleSteepness_Canvas;
+						if (steepCanvas > 255) steepCanvas = 255;
+						heightmap[ ((sections-xi) + (sections-yi) * (sections+1))*4 + 1 ] = steepCanvas;
+					}
 
 					// var normalness = 2.5 * normalLen / (snm*snm); //Math.sqrt(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
 					// var normalness = 50 * 250 * Math.sqrt(normal.x*normal.x + normal.y*normal.y);
-					var normalCanvas = Math.abs( normal.x * normal.y * Settings.scaleSteepness_Canvas );
-					if (normalCanvas < 0)   normalCanvas = 0;
-					if (normalCanvas > 255) normalCanvas = 255;
-					// heightmap[ ((quadSize-xOff) + (quadSize-yOff) * (quadSize+1))*4 + 2 ] = normalCanvas;
+					if (includeCanvas && Settings.canvas_ShowNormal) {
+						var normalCanvas = (normal.y * normal.x + 1.0) / 2.0 * Settings.scaleNormal_Canvas;
+						if (normalCanvas < 0)   normalCanvas = 0;
+						if (normalCanvas > 255) normalCanvas = 255;
+						heightmap[ ((sections-xi) + (sections-yi) * (sections+1))*4 + 2 ] = normalCanvas;
+					}
 
 					slopes[si+0] = Math.abs(normal.x) * Settings.scaleNormal_World;
 					slopes[si+1] = Math.abs(normal.y) * Settings.scaleNormal_World;
@@ -932,6 +954,11 @@ onmessage = function (oEvent) {
 	var elements = [],
 		transferObjects = [data.points, data.slopes];
 
+	if (includeCanvas) {
+		data.heightmap = heightmapBuffer;
+		transferObjects.push( data.heightmap );
+	}
+
 	for (var lSpacei=lodRange.min; lSpacei<=lodRange.max; ++lSpacei) {
 		var lSpace = LOD_Spaces[lSpacei],
 			lSpace_Obj = {
@@ -997,22 +1024,28 @@ var Voronoi = function(seed){
 				x: ((34*x.x + 1.0) * x.x) % magic,
 				y: ((34*x.y + 1.0) * x.y) % magic,
 				z: ((34*x.z + 1.0) * x.z) % magic };
-		}
+		};
+
+		var fract = function(x) {
+			if (x==0) return 0;
+			var sign = Math.abs(x)/x;
+			return sign * (Math.abs(x) - Math.floor(Math.abs(x)));
+		};
 
 		var Pi = { x: Math.floor(x) % magic,
 				   y: Math.floor(y) % magic },
-			Pf = { x: x - parseInt(x),
-				   y: y - parseInt(y) },
+			Pf = { x: fract(x),
+				   y: fract(y) },
 			oi = { x: -1.0, y: 0.0, z: 1.0 },
 			of = { x: -0.5, y: 0.5, z: 1.5 },
 			px = permute({ x: oi.x + Pi.x, y: oi.y + Pi.x, z: oi.z + Pi.x }),
 			p  = permute({ x: px.x + Pi.y + oi.x, y: px.x + Pi.y + oi.y, z: px.x + Pi.y + oi.z }),
-			ox = { x: (p.x*K) - parseInt(p.x*K) - Ko,
-				   y: (p.y*K) - parseInt(p.y*K) - Ko,
-				   z: (p.z*K) - parseInt(p.z*K) - Ko },
-			oy = {  x: (parseInt(p.x*K) % 7)*K - Ko,
-					y: (parseInt(p.y*K) % 7)*K - Ko,
-					z: (parseInt(p.z*K) % 7)*K - Ko },
+			ox = { x: fract(p.x*K) - Ko,
+				   y: fract(p.y*K) - Ko,
+				   z: fract(p.z*K) - Ko },
+			oy = {  x: (Math.floor(p.x*K) % 7)*K - Ko,
+					y: (Math.floor(p.y*K) % 7)*K - Ko,
+					z: (Math.floor(p.z*K) % 7)*K - Ko },
 			dx = {  x: Pf.x + 0.5 + jitter*ox.x,
 					y: Pf.x + 0.5 + jitter*ox.y,
 					z: Pf.x + 0.5 + jitter*ox.z },
@@ -1024,12 +1057,12 @@ var Voronoi = function(seed){
 					z: dx.z*dx.z + dy.z*dy.z };
 
 			p  = permute({ x: px.y + Pi.y + oi.x, y: px.y + Pi.y + oi.y, z: px.y + Pi.y + oi.z });
-			ox = {  x: (p.x*K) - parseInt(p.x*K) - Ko,
-					y: (p.y*K) - parseInt(p.y*K) - Ko,
-					z: (p.z*K) - parseInt(p.z*K) - Ko };
-			oy = {  x: (parseInt(p.x*K) % 7)*K - Ko,
-					y: (parseInt(p.y*K) % 7)*K - Ko,
-					z: (parseInt(p.z*K) % 7)*K - Ko };
+			ox = {  x: fract(p.x*K) - Ko,
+					y: fract(p.y*K) - Ko,
+					z: fract(p.z*K) - Ko };
+			oy = {  x: (Math.floor(p.x*K) % 7)*K - Ko,
+					y: (Math.floor(p.y*K) % 7)*K - Ko,
+					z: (Math.floor(p.z*K) % 7)*K - Ko };
 			dx = {  x: Pf.x - 0.5 + jitter*ox.x,
 					y: Pf.x - 0.5 + jitter*ox.y,
 					z: Pf.x - 0.5 + jitter*ox.z };
@@ -1041,12 +1074,12 @@ var Voronoi = function(seed){
 					z: dx.z*dx.z + dy.z*dy.z };
 
 			p  = permute({ x: px.z + Pi.y + oi.x, y: px.z + Pi.y + oi.y, z: px.z + Pi.y + oi.z });
-			ox = {  x: (p.x*K) - parseInt(p.x*K) - Ko,
-					y: (p.y*K) - parseInt(p.y*K) - Ko,
-					z: (p.z*K) - parseInt(p.z*K) - Ko };
-			oy = {  x: (parseInt(p.x*K) % 7)*K - Ko,
-					y: (parseInt(p.y*K) % 7)*K - Ko,
-					z: (parseInt(p.z*K) % 7)*K - Ko };
+			ox = {  x: fract(p.x*K) - Ko,
+					y: fract(p.y*K) - Ko,
+					z: fract(p.z*K) - Ko };
+			oy = {  x: (Math.floor(p.x*K) % 7)*K - Ko,
+					y: (Math.floor(p.y*K) % 7)*K - Ko,
+					z: (Math.floor(p.z*K) % 7)*K - Ko };
 			dx = {  x: Pf.x - 1.5 + jitter*ox.x,
 					y: Pf.x - 1.5 + jitter*ox.y,
 					z: Pf.x - 1.5 + jitter*ox.z };

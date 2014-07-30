@@ -1,7 +1,7 @@
 
 	var Settings = {
 			framerate            : 45,
-			fov                  : 75,
+			fov                  : 65,
 			nearPlane            : 1,
 			farPlane             : 300000.0,
 			canvasWidth          : null,
@@ -9,12 +9,16 @@
 			aspectRatio          : null,
 
 			scaleXZ              : 1.0,
+			quadTiles            : 248, // NOTE: must divide into the quad, and divide each LOD
 			scaleY_World         : 1000.0,
 			scaleSteepness_World : 50*256,
 			scaleNormal_World    : 1.0,
 			useLOD               : false,
-			quadSize             : 6200,
-			viewRadius           : 20000,// 60000,
+			quadSize             : 6200,//6200,
+			viewRadius           : 10000,//20000,// 60000,
+			maxWorkers           : 4,
+			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
+										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
 
 			seed1                : 280,
 			seed2                : 289
@@ -37,7 +41,14 @@
 		initViewport();
 		drawScene();
 
+
 		window['world'] = world;
+
+
+
+		if (Settings.includeCanvas) {
+			$('#heightmap').css('display', 'block');
+		}
 
 
 		var MOVE_FORWARD  = 1<<0,
@@ -110,6 +121,9 @@
 					UI.lastWorldUpdate = time;
 					world.update();
 				}
+				if (Settings.includeCanvas) {
+					updateCanvas();
+				}
 
 			}
 
@@ -118,47 +132,74 @@
 
 		updateMove();
 
-		/* TODO: re-enable canvas for heightmap visualization
-		canvas.addEventListener('mousedown', function MouseDownEvent(evt){
-			var bounds  = canvas.getBoundingClientRect(),
-				mouseY  = evt.clientY - bounds.top,
-				mouseX  = evt.clientX - bounds.left;
-
-			UI.mouse.isDown = true;
-			UI.mouse.position.x = mouseX;
-			UI.mouse.position.y = mouseY;
-		});
-
-		canvas.addEventListener('mouseup', function MouseUpEvent(evt){
-			UI.mouse.isDown = false;
-		});
-
-		canvas.addEventListener('mousemove', function MouseMoveEvent(evt){
-			if (UI.mouse.isDown) {
+		if (Settings.includeCanvas) {
+			canvas.addEventListener('mousedown', function MouseDownEvent(evt){
 				var bounds  = canvas.getBoundingClientRect(),
 					mouseY  = evt.clientY - bounds.top,
-					mouseX  = evt.clientX - bounds.left,
-					deltaY  = 1.7*2*(mouseY - UI.mouse.position.y),
-					deltaX  = 1.7*(mouseX - UI.mouse.position.x);
+					mouseX  = evt.clientX - bounds.left;
 
-				position.y += deltaY;
-				position.x += deltaX;
-
-				Objects.camera.position.x = Settings.scaleXZ*position.x;
-				Objects.camera.position.z = Settings.scaleXZ*position.y;
-				updateCamera();
-
+				UI.mouse.isDown = true;
 				UI.mouse.position.x = mouseX;
 				UI.mouse.position.y = mouseY;
+			});
 
-				var time = (new Date()).getTime();
-				if (time - UI.lastWorldUpdate > 400) {
-					UI.lastWorldUpdate = time;
-					world.update();
+			canvas.addEventListener('mouseup', function MouseUpEvent(evt){
+				UI.mouse.isDown = false;
+			});
+
+			canvas.addEventListener('mousemove', function MouseMoveEvent(evt){
+				if (UI.mouse.isDown) {
+					var bounds  = canvas.getBoundingClientRect(),
+						mouseY  = evt.clientY - bounds.top,
+						mouseX  = evt.clientX - bounds.left,
+						deltaY  = 10*1.7*2*(mouseY - UI.mouse.position.y),
+						deltaX  = 10*1.7*(mouseX - UI.mouse.position.x);
+
+					position.y += deltaY;
+					position.x += deltaX;
+
+					Objects.camera.position.x = Settings.scaleXZ*position.x;
+					Objects.camera.position.z = Settings.scaleXZ*position.y;
+
+
+					// Hover above the ground if necessary (don't clip through the terrain)
+					var insideQuad = null;
+					for (var hash in world.quadCache) {
+						var quad = world.quadCache[hash];
+						if (quad.x <= position.x && quad.y <= position.y && (quad.x + world.quadSize) >= position.x && (quad.y + world.quadSize) >= position.y) {
+							insideQuad = quad;
+							break;
+						}
+					}
+
+					if (insideQuad && insideQuad.heightmap) {
+						var floorHeight = insideQuad.heightmap.data[ ((Settings.quadTiles - Math.floor((position.x - quad.x)/(Settings.quadSize / (Settings.quadTiles+0)))) + (Settings.quadTiles - Math.floor((position.y - quad.y)/(Settings.quadSize / (Settings.quadTiles+0)))) * (Settings.quadTiles+1))*4 + 0 ] / 10.0 * Settings.scaleY_World,
+							hover = 1000;
+
+						// console.log("Positioning: pos{"+position.x+", "+position.y+"} quad{"+quad.x+", "+quad.y+"}; canvas{"+(Math.floor((position.x - quad.x)/(Settings.quadSize / (Settings.quadTiles+1))))+", "+(Math.floor((position.y - quad.y)/(Settings.quadSize / (Settings.quadTiles+1))))+"} --- "+floorHeight);
+
+						// if (Objects.camera.position.y > (floorHeight * -1 - hover)) {
+							Objects.camera.position.y = (-1*floorHeight) - hover;
+						// }
+					}
+
+
+
+					updateCamera();
+
+					UI.mouse.position.x = mouseX;
+					UI.mouse.position.y = mouseY;
+
+					var time = (new Date()).getTime();
+					if (time - UI.lastWorldUpdate > 400) {
+						UI.lastWorldUpdate = time;
+						world.update();
+					}
+
+					updateCanvas();
 				}
-			}
-		});
-		*/
+			});
+		}
 
 		viewportCanvas.addEventListener('mousedown', function MouseDownEvent(evt){
 

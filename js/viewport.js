@@ -727,6 +727,7 @@ var 	viewport = null,
 
 				var time = (new Date()).getTime();
 				bufferQuad(quad);
+				console.log("["+quad.index+"] BUFFERED QUAD");
 
 				delete quad.points;
 				delete quad.slopes;
