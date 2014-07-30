@@ -25,3 +25,13 @@ previous deleted data is collected, then the browser simply crashes (white scree
 # Pretty Pictures
 
 ![screenie](/screenshots/screen1.png)
+![screenie](/screenshots/screen2.png)
+![screenie](/screenshots/screen3.png)
+![screenie](/screenshots/screen4.png)
+![screenie](/screenshots/screen5.png)
+![screenie](/screenshots/screen6.png)
+![screenie](/screenshots/screen7.png)
+![screenie](/screenshots/screen8.png)
+![screenie](/screenshots/screen9.png)
+![screenie](/screenshots/screen10.png)
+![screenie](/screenshots/screen11.png)
