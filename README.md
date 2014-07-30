@@ -22,3 +22,6 @@ previous deleted data is collected, then the browser simply crashes (white scree
 - Tweak the texture synthesis in index.html, under `<script id="shader-fs" type="x-shader/x-fragment">`
 - Toy with the heightmap generation in generatorWorker.js
 
+# Pretty Pictures
+
+![screenie](/screenshots/screen1.png)
