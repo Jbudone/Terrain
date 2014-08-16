@@ -1,6 +1,13 @@
 
 // TODO
 //
+//	> LOD: use skirts/ribbons/flanges (which?)
+//	> Only load 1 LOD at a time
+//	> Fix LOD flickering
+//
+//
+//
+//
 //	> 3d noise in shaders: bumpy ground, dirty surfaces, vegetation, watery ground, turbulence + sine normal
 //							map on high slopes (erosion), alpha map between main/slope textures, turbulence
 //							along band-lines

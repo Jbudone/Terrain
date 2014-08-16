@@ -9,7 +9,47 @@ onmessage = function (oEvent) {
 	var simplex = new Simplex(seed1);
 	var voronoi = new Voronoi(seed2);
 	var logged = 0;
+	var clamp = function(value, min, max) {
+		return Math.max( Math.min( value, max ), min );
+	};
 	var getHeightAt = function(point) {
+
+		/*
+		var scale = 0.0003;
+		var height  =  1 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height +=  2 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height +=  4 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height +=  8 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height += 16 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height += 20 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height += 32 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height += 50 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height += 64 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+			height += 80 * Math.abs( simplex.noise( point.x * scale, point.y * scale ) ); scale /= 2;
+		height -= 30;
+		height /= 6;
+
+		// var selector = Noise.flatten( Noise.multifractalRidgid( simplex, {x:point.x*0.001, y:point.y*0.001}, 2, 3 ), 2.8, -0.45 );
+		// if (selector < 0) selector = 0.1;
+		// if (selector > 1) selector = 1;
+
+		// height *= selector;
+
+		// height = Noise.flatten( height, 4, -10 );
+		if (height < 0 ) return 0;
+		return height;
+		*/
+
+		// return simplex.noise(point.x, point.y);
+		// return simplex.noise(point.x * 0.001, point.y * 0.001);
+		// return Math.abs( simplex.noise( point.x * 0.001, point.y * 0.001 ) );
+		// return ( 1 * Math.abs( simplex.noise( point.x * 0.001,   point.y * 0.001 ) ) +
+		// 		 2 * Math.abs( simplex.noise( point.x * 0.0005,  point.y * 0.0005 ) ) +
+		// 		 4 * Math.abs( simplex.noise( point.x * 0.0002,  point.y * 0.0002 ) ) +
+		// 		 8 * Math.abs( simplex.noise( point.x * 0.0001,  point.y * 0.0002 ) )
+		// 		) / 10;
+		// return voronoi.noise( point.x * 0.001, point.y * 0.001 ).x;
+		// return voronoi.noise( point.x * 0.001, point.y * 0.001 ).y;
 
 		var height = 0.0;
 			turbulence = Noise.basicTurbulence( simplex, {x:point.x*0.1, y:point.y*0.1}, 2, 4 );
@@ -40,7 +80,7 @@ onmessage = function (oEvent) {
 		mountains -= 64 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
 		mountains /= 12;
 		mountains -= 1;
-		mountains = Noise.flatten( mountains, 2.5, -5 );
+		mountains = Noise.flatten( mountains, 3.5, -1 );
 
 		// Add Ridge-lines
 		// var ridges = Math.abs(voronoi.noise(point.x*0.0002, point.y*0.0002).y);
@@ -49,6 +89,74 @@ onmessage = function (oEvent) {
 		// mountains *= 1.0 + ridges;
 
 		if (mountains < 0) mountains = 0;
+
+		/////
+		//
+		//			LAND
+		//
+		/////
+
+		var land = 0;
+		var scaleLand = 0.5;
+		// land += 16 * Math.abs( simplex.noise(point.x *scaleLand* 0.00002 + 1000, point.y  * scaleLand * 0.00002 + 1000) );
+		// land += 16 * Math.abs( simplex.noise(point.x *scaleLand* 0.00002 + 2000, point.y  * scaleLand * 0.00002 + 2000) );
+		// land += 16 * Math.abs( simplex.noise(point.x *scaleLand* 0.00002 + 3000, point.y  * scaleLand * 0.00002 + 3000) );
+		// land += 32 * Math.abs( simplex.noise(point.x *scaleLand* 0.00001 + 1000, point.y  * scaleLand * 0.00001 + 1000) );
+		// land += 32 * Math.abs( simplex.noise(point.x *scaleLand* 0.00001 + 2000, point.y  * scaleLand * 0.00001 + 2000) );
+		// land += 32 * Math.abs( simplex.noise(point.x *scaleLand* 0.00001 + 3000, point.y  * scaleLand * 0.00001 + 3000) );
+		// land += 64 * Math.abs( simplex.noise(point.x *scaleLand* 0.000005 + 1000, point.y * scaleLand * 0.000005 + 1000) );
+		// land += 64 * Math.abs( simplex.noise(point.x *scaleLand* 0.000005 + 2000, point.y * scaleLand * 0.000005 + 2000) );
+		// land += 64 * Math.abs( simplex.noise(point.x *scaleLand* 0.000005 + 3000, point.y * scaleLand * 0.000005 + 3000) );
+		land += 128 * Math.abs( simplex.noise(point.x *scaleLand* 0.000002 + 1000, point.y * scaleLand * 0.000002 + 1000) );
+		land += 128 * Math.abs( simplex.noise(point.x *scaleLand* 0.000002 + 2000, point.y * scaleLand * 0.000002 + 2000) );
+		land += 128 * Math.abs( simplex.noise(point.x *scaleLand* 0.000002 + 3000, point.y * scaleLand * 0.000002 + 3000) );
+
+		// Lower & Flatten landscape
+		land /= 10;
+		land = Math.pow(land, 0.80);
+		land -= 5;
+
+		mountains *= land / 10;
+		land -= 5;
+		if (land > 1) land = 1;
+
+
+
+		/////
+		//
+		//			WATER
+		//
+		/////
+
+
+		/*
+		var water = 0;
+		// if (mountains <= 0) {
+		var mountainPeak = 500 - mountains;
+		// if (mountainPeak > 0) {
+			water += 16 *  Math.abs( simplex.noise(point.x * 0.00002, point.y * 0.00002) );
+			water += 32 *  Math.abs( simplex.noise(point.x * 0.00001, point.y * 0.00001) );
+			water += 64 *  Math.abs( simplex.noise(point.x * 0.000005, point.y * 0.000005) );
+			water += 128 *  Math.abs( simplex.noise(point.x * 0.000002, point.y * 0.000002) );
+			// water *= -1 * mountainPeak;
+
+			// Restrict Water Beds
+			var restriction = 1;
+			restriction -= 32 *  Math.abs( simplex.noise(point.x *  0.00005 + 1000, point.y * 0.00005 + 1000) );
+			restriction -= 32 *  Math.abs( simplex.noise(point.x *  0.00002 - 1000, point.y * 0.00002 - 1000) );
+			restriction -= 64 *  Math.abs( simplex.noise(point.x *  0.00002 + 1000, point.y * 0.00002 + 1000) );
+			restriction -= 64 *  Math.abs( simplex.noise(point.x *  0.00002 - 1000, point.y * 0.00002 - 1000) );
+			restriction -= 80 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
+			restriction /= 100;
+			restriction = -1*Math.pow(Math.abs(restriction), 6);
+			water *= restriction;
+			water /= 10000;
+			if (water > 0) water = 0;
+			*/
+		// }
+		
+		// return restriction;
+
 
 
 		/////
@@ -117,9 +225,9 @@ onmessage = function (oEvent) {
 
 
 
-		height = mountains + valley + hills + dunes;// - pebbles;
+		height = mountains + valley + hills + dunes + land;// - pebbles;
 
-		if (height < 0) height = 0;
+		// if (height < 0) height = 0;
 		return height;
 	};
 
@@ -180,8 +288,8 @@ onmessage = function (oEvent) {
 		scaleNormal_World     : oEvent.data.scaleNormal_World,
 
 		canvas_ShowHeight     : true,
-		canvas_ShowSlope      : true,
-		canvas_ShowNormal     : true
+		canvas_ShowSlope      : false,
+		canvas_ShowNormal     : false
 	};
 
 	var NORTH = 1<<0,

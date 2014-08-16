@@ -84,7 +84,7 @@
 			vec3 applyFog( in vec3  rgb,       // original color of the pixel
 						  in float distance ) // camera to point distance
 			{
-				float b = 0.00005;
+				float b = 0.00002;
 				float fogAmount = 1.0 - exp( -distance*b );
 				vec3  fogColor  = vec3(0.5,0.6,0.7);
 				return mix( rgb, fogColor, fogAmount );
@@ -458,7 +458,7 @@
 				vec4 texSlope = colSlope1 * (1.0 - by) + colSlope2 * by;
 				vec4 tex = texBase * (1.0 - bz) + texSlope * bz;
 				tex *= bMult;
-				// tex *= colDetail * 2.0;
+				tex *= colDetail * 2.0;
 
 
 
