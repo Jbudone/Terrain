@@ -58,7 +58,17 @@ var 	viewport = null,
 					{name: "grass"    , src: "grass.jpg"             , sampler: null}   ,
 					{name: "gravel"   , src: "gravel.jpg"            , sampler: null} ] ,
 			skybox: [
+
 						{ sampler: null, options: { skip: false }, cubemap: [
+							{ src: "FullMoon/FullMoonUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
+							{ src: "FullMoon/FullMoonDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
+							{ src: "FullMoon/FullMoonLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
+							{ src: "FullMoon/FullMoonRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
+							{ src: "FullMoon/FullMoonFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
+							{ src: "FullMoon/FullMoonBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
+						] },
+
+						{ sampler: null, options: { skip: true }, cubemap: [
 							{ src: "SunSet/SunSetUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
 							{ src: "SunSet/SunSetDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
 							{ src: "SunSet/SunSetLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
@@ -67,15 +77,6 @@ var 	viewport = null,
 							{ src: "SunSet/SunSetBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
 						] },
 
-
-						{ sampler: null, options: { skip: true }, cubemap: [
-							{ src: "FullMoon/FullMoonUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
-							{ src: "FullMoon/FullMoonDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
-							{ src: "FullMoon/FullMoonLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
-							{ src: "FullMoon/FullMoonRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
-							{ src: "FullMoon/FullMoonFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
-							{ src: "FullMoon/FullMoonBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
-						] },
 
 			
 					]

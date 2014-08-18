@@ -1,4 +1,8 @@
 
+body {
+	overflow: hidden;
+}
+
 #heightmap {
 	display:none;
 	position:absolute;
