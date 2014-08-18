@@ -2,8 +2,14 @@
 // TODO
 //
 //	> LOD: use skirts/ribbons/flanges (which?)
-//	> Only load 1 LOD at a time
-//	> Fix LOD flickering
+//		- convert to TRIANGLE_STRIP elements
+//		- add skirts (preset vertical distance)
+//			- fix sizes (elements & points/slopes)
+//			- remove 'inner'; lodRange
+//			- dynamic sections (for each LOD)
+//
+//	> Greedy quad generation: value = (quality / cost); what if quad currently on queue/updating for lod2 and
+//		now want to fetch lod1? (switch priorities)
 //
 //
 //
@@ -119,10 +125,10 @@ var canvas             = document.getElementById('heightmap'),
 				clearedThisQuad = false;
 			++workersWorking;
 			// loadInfo.range.min = 0;
-			if (Settings.useLOD) loadInfo.range.max = 6; // FIXME
-			else loadInfo.range.max = 0;
+			// if (Settings.useLOD) loadInfo.range.max = 6; // FIXME
+			// else loadInfo.range.max = 0;
 			console.log("["+quad.index+"] GENERATING QUAD");
-			quad.generate(loadInfo.range).then(function(obj){
+			quad.generate(loadInfo.lod).then(function(obj){
 				if (obj.quad) {
 					generatedQuadQueue.push(obj);
 					console.log("["+quad.index+"] GENERATED QUAD");
@@ -154,8 +160,9 @@ var canvas             = document.getElementById('heightmap'),
 				lod  = lodLevelFromDistance( distanceFromQuad(quad.x, quad.y) );
 			loadQuadQueue.push({
 				quad: quad,
-				range: { min: Math.max(lod - 1, 0),
-						 max: lod + 1 }
+				lod: lod,
+				// range: { min: Math.max(lod - 1, 0),
+				// 		 max: lod + 1 }
 			});
 		}
 	},
@@ -272,8 +279,9 @@ var World = function(){
 			var lod  = lodLevelFromDistance( distanceFromQuad(quad.x, quad.y) );
 			loadQuadQueue.push({
 				quad: quad,
-				range: { min: Math.max(lod - 1, 0),
-						 max: lod + 1 }
+				lod: lod
+				// range: { min: Math.max(lod - 1, 0),
+				// 		 max: lod + 1 }
 			});
 
 			this.quadCache[quad.hash] = quad;
@@ -382,7 +390,7 @@ var World = function(){
 		this.elements = [];
 
 		this.heightmap = null;
-		this.generate = function(range) {
+		this.generate = function(lod) {
 
 			var my = this;
 			return new Promise(function GeneratedQuad(resolve, reject){
@@ -405,6 +413,7 @@ var World = function(){
 								quad.heightmap.data.set(heightmap);
 							}
 
+							quad.newlod = lod;
 							for (var i=0; i<oEvent.data.elements.length; ++i) {
 								var el = oEvent.data.elements[i],
 									elements = {
@@ -421,11 +430,6 @@ var World = function(){
 								}
 								quad.elements[el.lodLevel] = elements;
 
-								if (quad.loadedLOD.min === null || el.lodLevel < quad.loadedLOD.min) {
-									quad.loadedLOD.min = el.lodLevel;
-								} else if (quad.loadedLOD.max === null || el.lodLevel > quad.loadedLOD.max) {
-									quad.loadedLOD.max = el.lodLevel;
-								}
 							}
 
 							resolve({myWorker: this, quad: quad});
@@ -444,12 +448,14 @@ var World = function(){
 						scaleY_World:Settings.scaleY_World,
 						scaleSteepness_World:Settings.scaleSteepness_World,
 						scaleNormal_World:Settings.scaleNormal_World,
+						verticalSkirtLength:Settings.verticalSkirtLength,
 						x:my.x,
 						y:my.y,
 						quadSize:world.quadSize,
 						hash:my.hash,
-						lodRange:range,
-						includeCanvas:(Settings.includeCanvas && range.min == 0),
+						lod:lod,
+						// lodRange:range,
+						includeCanvas:(Settings.includeCanvas && lod == 0),
 					};
 
 					transferringObjects = [];
