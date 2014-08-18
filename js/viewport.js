@@ -69,12 +69,12 @@ var 	viewport = null,
 						] },
 
 						{ sampler: null, options: { skip: true }, cubemap: [
-							{ src: "SunSet/SunSetUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
-							{ src: "SunSet/SunSetDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
-							{ src: "SunSet/SunSetLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
-							{ src: "SunSet/SunSetRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
-							{ src: "SunSet/SunSetFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
-							{ src: "SunSet/SunSetBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
+							{ src: "FullMoon/FullMoonUp2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y },
+							{ src: "FullMoon/FullMoonDown2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y },
+							{ src: "FullMoon/FullMoonLeft2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_X },
+							{ src: "FullMoon/FullMoonRight2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X },
+							{ src: "FullMoon/FullMoonFront2048.png", target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z },
+							{ src: "FullMoon/FullMoonBack2048.png", target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z },
 						] },
 
 
@@ -470,6 +470,7 @@ var 	viewport = null,
 				distance = distanceFromQuad(quad.x, quad.y),
 				lodLevel = lodLevelFromDistance(distance);
 
+			/*
 			var pendingNeighbourRecheck = false;
 			for (var neighbour in quad.neighbours) {
 				var neighbourCheck = neighbourLODCompare( quad.neighbours[neighbour], lodLevel );
@@ -486,6 +487,7 @@ var 	viewport = null,
 			if (pendingNeighbourRecheck) {
 				recheckNeighbours(quad, lodLevel);
 			}
+			*/
 			
 
 			drawQueue[quadHash] = { quad: quad, lod: lodLevel };
@@ -551,38 +553,24 @@ var 	viewport = null,
 			var quad = drawQueue[quadHash];
 			if (!quad.quad.neighbours) continue; // Hasn't been deleted yet
 
+
+			// Do we have this LOD loaded?
+			if (quad.quad.lod != quad.lod) {
+				if (!quad.quad.updating) {
+					quad.quad.updating = true;
+					loadQuadQueue.push({
+						quad: quad.quad,
+						lod: quad.lod
+					});
+					setTimeout(checkWorkerQueue, 100);
+				}
+				quad.lod = quad.quad.lod;
+			}
+
 			var colorUniform = gl.getUniformLocation(glShader.main.program, "uColor");
 			gl.uniform3fv(colorUniform, new Float32Array( colors[quad.lod] ));
 			i++;
 
-
-
-			// Do we have this LOD loaded?
-			if (quad.lod < quad.quad.loadedLOD.min) {
-				if (!quad.quad.updating) {
-					quad.quad.updating = true;
-					loadQuadQueue.push({
-						quad: quad.quad,
-						range: { min: Math.max(quad.lod - 1, 0),
-								 max: quad.quad.loadedLOD.min - 1 }
-					});
-					setTimeout(checkWorkerQueue, 100);
-				}
-
-				quad.lod = quad.quad.loadedLOD.min;
-			} else if (quad.lod > quad.quad.loadedLOD.max) {
-				if (!quad.quad.updating) {
-					quad.quad.updating = true;
-					loadQuadQueue.push({
-						quad: quad.quad,
-						range: { min: quad.quad.loadedLOD.max + 1,
-								 max: quad.lod + 1 }
-					});
-					setTimeout(checkWorkerQueue, 100);
-				}
-
-				quad.lod = quad.quad.loadedLOD.max;
-			}
 
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, quad.quad.slopesBuffer);
@@ -591,70 +579,13 @@ var 	viewport = null,
 			gl.bindBuffer(gl.ARRAY_BUFFER, quad.quad.verticesBuffer);
 			gl.vertexAttribPointer(Shaders.main.vertex.attributes['aVertexPosition'], 3, gl.FLOAT, false, 0, 0);
 
-			// If our neighbour is being drawn with a lower LOD than we can handle, then queue this quad
-			// loading that LOD
-			if (quad.quad.neighbours.north &&
-				drawQueue[quad.quad.neighbours.north.hash] &&
-				(drawQueue[quad.quad.neighbours.north.hash].lod < (quad.lod-1))){
-
-				if (!quad.quad.updating) {
-					quad.quad.updating = true;
-					loadQuadQueue.push({
-						quad: quad.quad,
-						range: { min: Math.min(0,drawQueue[quad.quad.neighbours.north.hash].lod - 1),
-								 max: quad.quad.loadedLOD.min - 1 }
-					});
-					setTimeout(checkWorkerQueue, 100);
-				}
-			}
-			if (quad.quad.neighbours.south &&
-				drawQueue[quad.quad.neighbours.south.hash] &&
-				(drawQueue[quad.quad.neighbours.south.hash].lod < (quad.lod-1))){
-
-				if (!quad.quad.updating) {
-					quad.quad.updating = true;
-					loadQuadQueue.push({
-						quad: quad.quad,
-						range: { min: Math.min(0,drawQueue[quad.quad.neighbours.south.hash].lod - 1),
-								 max: quad.quad.loadedLOD.min - 1 }
-					});
-					setTimeout(checkWorkerQueue, 100);
-				}
-			}
-			if (quad.quad.neighbours.west &&
-				drawQueue[quad.quad.neighbours.west.hash] &&
-				(drawQueue[quad.quad.neighbours.west.hash].lod < (quad.lod-1))){
-
-				if (!quad.quad.updating) {
-					quad.quad.updating = true;
-					loadQuadQueue.push({
-						quad: quad.quad,
-						range: { min: Math.min(0,drawQueue[quad.quad.neighbours.west.hash].lod - 1),
-								 max: quad.quad.loadedLOD.min - 1 }
-					});
-					setTimeout(checkWorkerQueue, 100);
-				}
-			}
-			if (quad.quad.neighbours.east &&
-				drawQueue[quad.quad.neighbours.east.hash] &&
-				(drawQueue[quad.quad.neighbours.east.hash].lod < (quad.lod-1))){
-
-				if (!quad.quad.updating) {
-					quad.quad.updating = true;
-					loadQuadQueue.push({
-						quad: quad.quad,
-						range: { min: Math.min(0,drawQueue[quad.quad.neighbours.east.hash].lod - 1),
-								 max: quad.quad.loadedLOD.min - 1 }
-					});
-					setTimeout(checkWorkerQueue, 100);
-				}
-			}
 
 
 
 			var buffer = null;
 
 			// Draw Inner part of quad
+			if (quad.quad.lod == undefined) continue; // Not yet set
 			if (quad.quad.elements[quad.lod] === undefined) {
 				console.error("Bad LOD picked");
 			}
@@ -663,47 +594,6 @@ var 	viewport = null,
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
 			gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_SHORT, 0);
 
-
-			// Draw queue for edges
-			// NOTE: if a neighbour quad is being rendered at a lower LOD than ours, then
-			// 		we need to render our adjacent edges at a matching LOD (skirts)
-			var edgeDrawQueue = {
-				top: quad.quad.elements[quad.lod].elements.top,
-				bottom: quad.quad.elements[quad.lod].elements.bottom,
-				left: quad.quad.elements[quad.lod].elements.left,
-				right: quad.quad.elements[quad.lod].elements.right,
-			};
-			if (quad.quad.neighbours.north &&
-				drawQueue[quad.quad.neighbours.north.hash] &&
-				drawQueue[quad.quad.neighbours.north.hash].lod < quad.lod) {
-
-				edgeDrawQueue['top'] = quad.quad.elements[quad.lod].elements.top_L0;
-			}
-
-			if (quad.quad.neighbours.south &&
-				drawQueue[quad.quad.neighbours.south.hash] &&
-				drawQueue[quad.quad.neighbours.south.hash].lod < quad.lod) {
-
-				edgeDrawQueue['bottom'] = quad.quad.elements[quad.lod].elements.bottom_L0;
-			}
-			if (quad.quad.neighbours.west &&
-				drawQueue[quad.quad.neighbours.west.hash] &&
-				drawQueue[quad.quad.neighbours.west.hash].lod < quad.lod) {
-
-				edgeDrawQueue['right'] = quad.quad.elements[quad.lod].elements.right_L0;
-			}
-			if (quad.quad.neighbours.east &&
-				drawQueue[quad.quad.neighbours.east.hash] &&
-				drawQueue[quad.quad.neighbours.east.hash].lod < quad.lod) {
-
-				edgeDrawQueue['left'] = quad.quad.elements[quad.lod].elements.left_L0;
-			}
-
-			for (var edge in edgeDrawQueue) {
-				buffer = edgeDrawQueue[edge];
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-				gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_SHORT, 0);
-			}
 
 		}
 
@@ -726,19 +616,19 @@ var 	viewport = null,
 					quad     = obj.quad;
 				delete myWorker;
 
+				if (quad.newlod === undefined) continue;
 				var time = (new Date()).getTime();
 				bufferQuad(quad);
 				console.log("["+quad.index+"] BUFFERED QUAD");
 
 				delete quad.points;
 				delete quad.slopes;
-				for (var i=0; i<quad.elements.length; ++i) {
-					if (quad.elements[i]) {
-						var elements = quad.elements[i].elements;
-						if (elements) {
-							for (var el in elements) {
-								delete elements[el].data;
-							}
+				var lod = quad.lod;
+				if (quad.elements[lod]) {
+					var elements = quad.elements[lod].elements;
+					if (elements) {
+						for (var el in elements) {
+							delete elements[el].data;
 						}
 					}
 				}
@@ -757,17 +647,14 @@ var 	viewport = null,
 	bufferQuad = function(quad){
 
 		Objects.quads[quad.hash] = quad;
-		for (var lodLevel=quad.loadedLOD.min; lodLevel<=quad.loadedLOD.max; ++lodLevel) {
-			var lSpace = quad.elements[lodLevel];
-			for (var bufferName in lSpace.elements) {
-				var buffer = lSpace.elements[bufferName];
-				if (buffer.vao) gl.deleteBuffer( buffer.vao ); // NOTE: need to rebuffer existing elements since they will point to an older verticesBuffer
+		if (quad.lod !== undefined && quad.lod !== quad.newlod && quad.elements[quad.lod].elements['inner'].vao) gl.deleteBuffer( quad.elements[quad.lod].elements['inner'].vao ); // NOTE: need to rebuffer existing elements since they will point to an older verticesBuffer
+		quad.lod = quad.newlod; delete quad.newlod;
+		var lSpace = quad.elements[quad.lod];
+		var buffer = lSpace.elements['inner'];
 
-				buffer.vao = gl.createBuffer();
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.data), gl.STATIC_DRAW);
-			}
-		}
+		buffer.vao = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.data), gl.STATIC_DRAW);
 		if (Objects.quads[quad.hash].verticesBuffer) gl.deleteBuffer( Objects.quads[quad.hash].verticesBuffer );
 		Objects.quads[quad.hash].verticesBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, Objects.quads[quad.hash].verticesBuffer);

@@ -80,7 +80,11 @@ onmessage = function (oEvent) {
 		mountains -= 64 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
 		mountains /= 12;
 		mountains -= 1;
+<<<<<<< HEAD
 		mountains = Noise.flatten( mountains, 2.5, -1 );
+=======
+		mountains = Noise.flatten( mountains, 3.5, -1 );
+>>>>>>> a369d7edcb08e71e6dd5544873b2f942794eace6
 
 		// Add Ridge-lines
 		// var ridges = Math.abs(voronoi.noise(point.x*0.0002, point.y*0.0002).y);
@@ -89,6 +93,74 @@ onmessage = function (oEvent) {
 		// mountains *= 1.0 + ridges;
 
 		if (mountains < 0) mountains = 0;
+
+		/////
+		//
+		//			LAND
+		//
+		/////
+
+		var land = 0;
+		var scaleLand = 0.5;
+		// land += 16 * Math.abs( simplex.noise(point.x *scaleLand* 0.00002 + 1000, point.y  * scaleLand * 0.00002 + 1000) );
+		// land += 16 * Math.abs( simplex.noise(point.x *scaleLand* 0.00002 + 2000, point.y  * scaleLand * 0.00002 + 2000) );
+		// land += 16 * Math.abs( simplex.noise(point.x *scaleLand* 0.00002 + 3000, point.y  * scaleLand * 0.00002 + 3000) );
+		// land += 32 * Math.abs( simplex.noise(point.x *scaleLand* 0.00001 + 1000, point.y  * scaleLand * 0.00001 + 1000) );
+		// land += 32 * Math.abs( simplex.noise(point.x *scaleLand* 0.00001 + 2000, point.y  * scaleLand * 0.00001 + 2000) );
+		// land += 32 * Math.abs( simplex.noise(point.x *scaleLand* 0.00001 + 3000, point.y  * scaleLand * 0.00001 + 3000) );
+		// land += 64 * Math.abs( simplex.noise(point.x *scaleLand* 0.000005 + 1000, point.y * scaleLand * 0.000005 + 1000) );
+		// land += 64 * Math.abs( simplex.noise(point.x *scaleLand* 0.000005 + 2000, point.y * scaleLand * 0.000005 + 2000) );
+		// land += 64 * Math.abs( simplex.noise(point.x *scaleLand* 0.000005 + 3000, point.y * scaleLand * 0.000005 + 3000) );
+		land += 128 * Math.abs( simplex.noise(point.x *scaleLand* 0.000002 + 1000, point.y * scaleLand * 0.000002 + 1000) );
+		land += 128 * Math.abs( simplex.noise(point.x *scaleLand* 0.000002 + 2000, point.y * scaleLand * 0.000002 + 2000) );
+		land += 128 * Math.abs( simplex.noise(point.x *scaleLand* 0.000002 + 3000, point.y * scaleLand * 0.000002 + 3000) );
+
+		// Lower & Flatten landscape
+		land /= 10;
+		land = Math.pow(land, 0.80);
+		land -= 5;
+
+		mountains *= land / 10;
+		land -= 5;
+		if (land > 1) land = 1;
+
+
+
+		/////
+		//
+		//			WATER
+		//
+		/////
+
+
+		/*
+		var water = 0;
+		// if (mountains <= 0) {
+		var mountainPeak = 500 - mountains;
+		// if (mountainPeak > 0) {
+			water += 16 *  Math.abs( simplex.noise(point.x * 0.00002, point.y * 0.00002) );
+			water += 32 *  Math.abs( simplex.noise(point.x * 0.00001, point.y * 0.00001) );
+			water += 64 *  Math.abs( simplex.noise(point.x * 0.000005, point.y * 0.000005) );
+			water += 128 *  Math.abs( simplex.noise(point.x * 0.000002, point.y * 0.000002) );
+			// water *= -1 * mountainPeak;
+
+			// Restrict Water Beds
+			var restriction = 1;
+			restriction -= 32 *  Math.abs( simplex.noise(point.x *  0.00005 + 1000, point.y * 0.00005 + 1000) );
+			restriction -= 32 *  Math.abs( simplex.noise(point.x *  0.00002 - 1000, point.y * 0.00002 - 1000) );
+			restriction -= 64 *  Math.abs( simplex.noise(point.x *  0.00002 + 1000, point.y * 0.00002 + 1000) );
+			restriction -= 64 *  Math.abs( simplex.noise(point.x *  0.00002 - 1000, point.y * 0.00002 - 1000) );
+			restriction -= 80 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
+			restriction /= 100;
+			restriction = -1*Math.pow(Math.abs(restriction), 6);
+			water *= restriction;
+			water /= 10000;
+			if (water > 0) water = 0;
+			*/
+		// }
+		
+		// return restriction;
+
 
 
 		/////
@@ -179,7 +251,7 @@ onmessage = function (oEvent) {
 
 
 
-		height = mountains + water + valley + hills + dunes;// - pebbles;
+		height = mountains + valley + hills + dunes + land;// - pebbles;
 
 		// if (height < 0) height = 0;
 		return height;
@@ -241,85 +313,54 @@ onmessage = function (oEvent) {
 		scaleNormal_Canvas    : 1 * 250,
 		scaleNormal_World     : oEvent.data.scaleNormal_World,
 
+		verticalSkirtLength   : oEvent.data.verticalSkirtLength,
+
 		canvas_ShowHeight     : true,
 		canvas_ShowSlope      : false,
 		canvas_ShowNormal     : false
-	};
-
-	var NORTH = 1<<0,
-		EAST  = 1<<1,
-		SOUTH = 1<<2,
-		WEST  = 1<<3;
-	var LOD_Buffer = function(bufferSize, isL0){
-		this.elementsBuffer = new ArrayBuffer(bufferSize);
-		this.elements = new Uint16Array(this.elementsBuffer);
-		this.ei = 0;
-
-		this.isL0 = isL0 || false;
 	};
 
 	// WARNING: lodSections MUST be divisible by the number of sections
 	var LOD_Space = function(lodSections){
 		this.lodSections = lodSections;
 
-		this.elements = {
-
-			inner: new LOD_Buffer(2*(Math.pow(sections/lodSections - 2, 2) * 2 * 3)),
-			top:    new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
-			left:   new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
-			right:  new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
-			bottom: new LOD_Buffer(2*(sections/lodSections - 1) * 2 * 3),
-
-		};
-
-		// Skirts (lod for lower level)
-		if (lodSections >= 1) {
-			this.elements['top_L0'] =    new LOD_Buffer(2*((sections/lodSections - 2)*3 + 4)*3, NORTH);
-			this.elements['left_L0'] =   new LOD_Buffer(2*((sections/lodSections - 2)*3 + 4)*3, WEST);
-			this.elements['right_L0'] =  new LOD_Buffer(2*((sections/lodSections - 2)*3 + 4)*3, EAST);
-			this.elements['bottom_L0'] = new LOD_Buffer(2*((sections/lodSections - 2)*3 + 4)*3, SOUTH);
-		}
+		// FIXME
+		// inner: new LOD_Buffer(2*(Math.pow(sections/lodSections - 2, 2) * 2 * 3)),
+		this.elementsBuffer = new ArrayBuffer(2*400000);
+		this.elements = new Uint16Array(this.elementsBuffer);
+		this.ei = 0;
 
 	};
 
 	var quadSize = oEvent.data.quadSize,
 		quadX = oEvent.data.x,
 		quadY = oEvent.data.y,
-		lodRange = oEvent.data.lodRange,
+		lod = oEvent.data.lod,
 
-		basePower = 2,
 		sections = oEvent.data.sections,
 		scaleXZ = -1.0*oEvent.data.scaleXZ,
 		includeCanvas = oEvent.data.includeCanvas,
-		qLen = Math.floor(quadSize/sections);
+		qLen = Math.floor(quadSize/sections),
 
-
-		LOD_Spaces = [
-			new LOD_Space(1),
-			new LOD_Space(2),
-			new LOD_Space(4),
-			new LOD_Space(8),
-			// new LOD_Space(16),
-			// new LOD_Space(32),
-			// new LOD_Space(64),
-		];
 
 	/////////////////////
 	// Generate Heightmap
 	///////////////////////////
 
-	var pointsBuffer    = null,
+		Quad = new LOD_Space(Math.pow(2, lod)),
+		pointsBuffer    = null,
 		slopesBuffer    = null,
-		heightmapBuffer = null,
-		loadedLOD       = null;
+		heightmapBuffer = null;
 	if (oEvent.data.points && oEvent.data.slopes) {
 		pointsBuffer    = oEvent.data.points;
 		slopesBuffer    = oEvent.data.slopes;
 		heightmapBuffer = oEvent.data.heightmap;
-		loadedLOD       = oEvent.data.pointsLOD;
 	} else {
-		pointsBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3); // xyz position
-		slopesBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*4); // Normal & Steepness
+		// FIXME: this
+		// pointsBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3); // xyz position
+		// slopesBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*4); // Normal & Steepness
+		pointsBuffer    = new ArrayBuffer(4*280000); // xyz position
+		slopesBuffer    = new ArrayBuffer(4*280000); // Normal & Steepness
 		if (includeCanvas) heightmapBuffer = new ArrayBuffer(4*(sections+1)*(sections+1));
 	}
 
@@ -339,62 +380,18 @@ onmessage = function (oEvent) {
 		snm = 1, // Normal/Slope compare offset
 
 		time_Height=0,
-		time_Elements=0,
-
-		BUFFER_INNER  = 1<<0,
-		BUFFER_TOP    = 1<<1,
-		BUFFER_RIGHT  = 1<<2,
-		BUFFER_BOTTOM = 1<<3,
-		BUFFER_LEFT   = 1<<4;
-
-	var whichBufferSpace = function(point, lodSections){
-		// point: starts at (0,0) and ends at (quadSize+1,quadSize+1)
-		// lodSections: number of sections in this particular LOD space
-
-		var mask = 0;
-		if (point.x < lodSections) {
-			mask |= BUFFER_LEFT;
-		}
-		if (point.y < lodSections) {
-			mask |= BUFFER_BOTTOM;
-		}
-		if (point.x > (sections-lodSections)) {
-			mask |= BUFFER_RIGHT;
-		}
-		if (point.y > (sections-lodSections)) {
-			mask |= BUFFER_TOP;
-		}
-		if (mask === 0) {
-			mask |= BUFFER_INNER;
-		}
-		return mask;
-	},
-
-	describeBufferSpace = function(mask){
-		var str = "(";
-		if (mask & BUFFER_INNER) str += "INNER | ";
-		if (mask & BUFFER_TOP) str += "TOP | ";
-		if (mask & BUFFER_RIGHT) str += "RIGHT | ";
-		if (mask & BUFFER_LEFT) str += "LEFT | ";
-		if (mask & BUFFER_BOTTOM) str += "BOTTOM | ";
-		str += ")";
-		return str;
-	};
+		time_Elements=0;
 
 
 
 
 
 
-
-
-
-
-	lodRange.max = Math.min( LOD_Spaces.length-1, lodRange.max );
+	// lodRange.max = Math.min( LOD_Spaces.length-1, lodRange.max );
 	var previouslyLoadedPointsCount = 0,
 		numErrors = 0;
-	for (var y=quadY, yOff=0, yi=0; yi<=sections; y+=qLen, yOff+=qLen){//++y, ++yOff) {
-		for (var x=quadX, xOff=0, xi=-1; xi<=sections; x+=qLen, xOff+=qLen){//++x, ++xOff) {
+	for (var y=quadY, yOff=0, yi=0; yi<=sections; y+=qLen, yOff+=qLen){
+		for (var x=quadX, xOff=0, xi=-1; xi<=sections; x+=qLen, xOff+=qLen){
 
 			if (xOff % qLen == 0) ++xi;
 
@@ -403,16 +400,9 @@ onmessage = function (oEvent) {
 				xi <= sections && yi <= sections) {
 
 				var height = null;
-				if (false && loadedLOD !== null && // FIXME
-					xi % LOD_Spaces[loadedLOD].lodSections == 0 &&
-					yi % LOD_Spaces[loadedLOD].lodSections == 0) {
-
-					++previouslyLoadedPointsCount;
-					if (points[i+1] == 0) ++numErrors;
-
-				} else if (
-					(xi % LOD_Spaces[lodRange.min].lodSections == 0 &&
-					 yi % LOD_Spaces[lodRange.min].lodSections == 0)    // LOD part
+				if (
+					(xi % Quad.lodSections == 0 &&
+					 yi % Quad.lodSections == 0)    // LOD part
 
 						 ||
 
@@ -443,14 +433,14 @@ onmessage = function (oEvent) {
 					var leftHeight   = 0.0,
 						bottomHeight = 0.0;
 					if (xi < snm ||
-					    ((xi-snm) % Math.min(LOD_Spaces[lodRange.min].lodSections, (loadedLOD!==null? LOD_Spaces[loadedLOD].lodSections : LOD_Spaces[lodRange.min].lodSections)) != 0) ) {
+					    ((xi-snm) % Math.min(Quad.lodSections, (Quad.lodSections)) != 0) ) {
 						leftHeight = getHeightAt({x: x-snm*qLen, y: y});
 					} else {
 						leftHeight = points[3*(yi*(sections+1) + (xi-snm)) + 1] / Settings.scaleY_World;
 					}
 
 					if (yi < snm ||
-					    ((yi-snm) % Math.min(LOD_Spaces[lodRange.min].lodSections, (loadedLOD!==null? LOD_Spaces[loadedLOD].lodSections : LOD_Spaces[lodRange.min].lodSections)) != 0) ) {
+					    ((yi-snm) % Math.min(Quad.lodSections, (Quad.lodSections)) != 0) ) {
 						bottomHeight = getHeightAt({x: x, y: y-snm*qLen});
 					} else {
 						bottomHeight = points[3*((yi-snm)*(sections+1) + xi) + 1] / Settings.scaleY_World;
@@ -506,486 +496,42 @@ onmessage = function (oEvent) {
 
 					var time = (new Date()).getTime();
 
-					for (var lSpacei=lodRange.min; lSpacei<=lodRange.max; ++lSpacei) {
-						var lSpace  = LOD_Spaces[lSpacei];
-
-						if (xi >= lSpace.lodSections && yi >= lSpace.lodSections &&
-							(xi % lSpace.lodSections == 0) && (yi % lSpace.lodSections == 0)) {
-							var pBSpace_q4 = whichBufferSpace({y:yi, x:xi}, lSpace.lodSections),
-								pBSpace_q1 = whichBufferSpace({y:yi-lSpace.lodSections, x:xi-lSpace.lodSections}, lSpace.lodSections),
-
-								// NOTE: parametric point (x,y) is given at index:
-								// 			(y-1)*3n + x*3 + (0,1,2)
-								// 		  = 3((y-1) + x) + (0,1,2)
-								//
-								// 		 	n is the number of sections
-								L = lSpace.lodSections,
-								n = sections+1,
-								i4 = (yi*n + xi),
-								i3 = (yi*n + (xi-L)),
-								i2 = ((yi-L)*n + xi),
-								i1 = ((yi-L)*n + (xi-L)),
-
-								in_L0  = null,
-								ie_L0  = null,
-								is_L0  = null,
-								iw_L0  = null;
-
-								
-								if (L>=basePower) {
-									var L0 = L/basePower;
-
-									in_L0 = (yi*n + (xi-L0));
-									ie_L0 = ((yi-L0)*n + xi);
-									is_L0 = ((yi-L)*n + (xi-L0));
-									iw_L0 = ((yi-L0)*n + (xi-L));
-								}
-
-							if (i4 !== (i3+1*L) ||
-								i2 !== (i1+1*L) ||
-								i4 !== (i/3)) {
-								console.error("Error finding coordinates!");
-							}
-
-
-
-								var isCorner = false,
-									bufferSpace = null;
-
-								if (pBSpace_q4 === BUFFER_INNER &&
-									pBSpace_q1 === BUFFER_INNER) {
-
-									bufferSpace = {
-										L1: lSpace.elements.inner
-									};
-
-								} else if (pBSpace_q4 === BUFFER_TOP &&
-										   pBSpace_q1 === BUFFER_TOP) {
-
-									bufferSpace = {
-										L1: lSpace.elements.top,
-										L0: lSpace.elements.top_L0
-									};
-
-
-								} else if (pBSpace_q4 === BUFFER_BOTTOM &&
-										   pBSpace_q1 === BUFFER_BOTTOM) {
-
-									bufferSpace = {
-										L1: lSpace.elements.bottom,
-										L0: lSpace.elements.bottom_L0
-									};
-
-								} else if (pBSpace_q4 === BUFFER_LEFT &&
-										   pBSpace_q1 === BUFFER_LEFT) {
-
-									bufferSpace = {
-										L1: lSpace.elements.left,
-										L0: lSpace.elements.left_L0
-									};
-
-								} else if (pBSpace_q4 === BUFFER_RIGHT &&
-										   pBSpace_q1 === BUFFER_RIGHT) {
-
-									bufferSpace = {
-										L1: lSpace.elements.right,
-										L0: lSpace.elements.right_L0
-									};
-
-								} else if (pBSpace_q4 === (BUFFER_TOP|BUFFER_RIGHT) &&
-										   pBSpace_q1 === (BUFFER_TOP|BUFFER_RIGHT)) {
-
-									isCorner = true;
-									bufferSpace = {
-										nw: {
-											L1: lSpace.elements.top,
-											L0: lSpace.elements.top_L0
-										},
-										se: {
-											L1: lSpace.elements.right,
-											L0: lSpace.elements.right_L0
-										},
-									};
-
-								} else if ((pBSpace_q4 === BUFFER_INNER) &&
-										   (pBSpace_q1 === (BUFFER_LEFT | BUFFER_BOTTOM))) {
-
-										isCorner = true;
-										bufferSpace = {
-											nw: {
-												L1: lSpace.elements.left,
-												L0: lSpace.elements.left_L0
-											},
-											se: {
-												L1: lSpace.elements.bottom,
-												L0: lSpace.elements.bottom_L0
-											},
-										};
-
-								} else if ((pBSpace_q4 === BUFFER_INNER) &&
-										   (pBSpace_q1 === BUFFER_BOTTOM)) {
-
-										bufferSpace = {
-											L1: lSpace.elements.bottom,
-											L0: lSpace.elements.bottom_L0
-										};
-
-								} else if ((pBSpace_q4 === BUFFER_RIGHT) &&
-										   (pBSpace_q1 === BUFFER_BOTTOM)) {
-
-										isCorner = true;
-										bufferSpace = {
-											sw: {
-												L1: lSpace.elements.bottom,
-												L0: lSpace.elements.bottom_L0
-											},
-											ne: {
-												L1: lSpace.elements.right,
-												L0: lSpace.elements.right_L0
-											}
-										}
-
-								} else if ((pBSpace_q4 === BUFFER_INNER) &&
-										   (pBSpace_q1 === BUFFER_LEFT)) {
-
-										bufferSpace = {
-											L1: lSpace.elements.left,
-											L0: lSpace.elements.left_L0
-										};
-
-								} else if ((pBSpace_q4 === BUFFER_RIGHT) &&
-										   (pBSpace_q1 === BUFFER_INNER)) {
-
-										bufferSpace = {
-											L1: lSpace.elements.right,
-											L0: lSpace.elements.right_L0
-										};
-
-								} else if ((pBSpace_q4 === BUFFER_TOP) &&
-										   (pBSpace_q1 === BUFFER_INNER)) {
-
-										bufferSpace = {
-											L1: lSpace.elements.top,
-											L0: lSpace.elements.top_L0
-										};
-
-								} else if ((pBSpace_q4 === (BUFFER_TOP | BUFFER_RIGHT)) &&
-										   (pBSpace_q1 === BUFFER_INNER)) {
-
-										isCorner = true;
-										bufferSpace = {
-											se: {
-												L1: lSpace.elements.right,
-												L0: lSpace.elements.right_L0
-											},
-											nw: {
-												L1: lSpace.elements.top,
-												L0: lSpace.elements.top_L0
-											}
-										}
-
-								} else if ((pBSpace_q4 === BUFFER_TOP) &&
-										   (pBSpace_q1 === BUFFER_LEFT)) {
-
-										isCorner = true;
-										bufferSpace = {
-											sw: {
-												L1: lSpace.elements.left,
-												L0: lSpace.elements.left_L0
-											},
-											ne: {
-												L1: lSpace.elements.top,
-												L0: lSpace.elements.top_L0
-											}
-										}
-
-								} else if ((pBSpace_q4 === (BUFFER_TOP | BUFFER_RIGHT)) &&
-										   (pBSpace_q1 === BUFFER_TOP)) {
-									console.error("THIS SHOULD NEVER OCCUR");
-									bufferSpace = {
-										L1: lSpace.elements.inner // TODO: WRONG,
-									};
-										
-								} else if ((pBSpace_q4 === (BUFFER_TOP | BUFFER_RIGHT)) &&
-										   (pBSpace_q1 === BUFFER_RIGHT)) {
-									console.error("THIS SHOULD NEVER OCCUR");
-									bufferSpace = {
-										L1: lSpace.elements.inner // TODO: WRONG,
-									};
-										
-
-								} else if ((pBSpace_q4 === BUFFER_TOP) &&
-										   (pBSpace_q1 === (BUFFER_TOP | BUFFER_LEFT))) {
-									console.error("THIS SHOULD NEVER OCCUR");
-									bufferSpace = {
-										L1: lSpace.elements.inner // TODO: WRONG,
-									};
-										
-
-								} else if ((pBSpace_q4 === BUFFER_RIGHT) &&
-										   (pBSpace_q1 === (BUFFER_RIGHT | BUFFER_BOTTOM))) {
-									console.error("THIS SHOULD NEVER OCCUR");
-									bufferSpace = {
-										L1: lSpace.elements.inner // TODO: WRONG,
-									};
-										
-								} else {
-
-									console.warn("CORNER!? Unsure which buffer space... probably use & mask to pick best candidate");
-									// console.log("q4: " + describeBufferSpace(pBSpace_q4));
-									// console.log("q1: " + describeBufferSpace(pBSpace_q1));
-
-								}
-
-								if (bufferSpace) {
-
-									if (isCorner) {
-
-										if (bufferSpace.nw) {
-
-											bufferSpace.nw.L1.elements[ bufferSpace.nw.L1.ei+0 ] = i1;
-											bufferSpace.nw.L1.elements[ bufferSpace.nw.L1.ei+1 ] = i4;
-											bufferSpace.nw.L1.elements[ bufferSpace.nw.L1.ei+2 ] = i3;
-											bufferSpace.nw.L1.ei += 3;
-
-											if (bufferSpace.nw.L0) {
-
-												if (bufferSpace.nw.L0.isL0 & NORTH) {
-
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+0 ] = i1;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+1 ] = i4;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+2 ] = in_L0;
-
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+3 ] = i1;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+4 ] = in_L0;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+5 ] = i3;
-
-													bufferSpace.nw.L0.ei += 6;
-
-												} else if (bufferSpace.nw.L0.isL0 & WEST) {
-
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+0 ] = i1;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+1 ] = i4;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+2 ] = iw_L0;
-
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+3 ] = iw_L0;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+4 ] = i4;
-													bufferSpace.nw.L0.elements[ bufferSpace.nw.L0.ei+5 ] = i3;
-
-													bufferSpace.nw.L0.ei += 6;
-
-												}
-											}
-
-										}
-
-										if (bufferSpace.ne) {
-
-											bufferSpace.ne.L1.elements[ bufferSpace.ne.L1.ei+0 ] = i2;
-											bufferSpace.ne.L1.elements[ bufferSpace.ne.L1.ei+1 ] = i4;
-											bufferSpace.ne.L1.elements[ bufferSpace.ne.L1.ei+2 ] = i3;
-											bufferSpace.ne.L1.ei += 3;
-
-											if (bufferSpace.ne.L0) {
-
-												if (bufferSpace.ne.L0.isL0 & NORTH) {
-
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+0 ] = i2;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+1 ] = i4;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+2 ] = in_L0;
-
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+3 ] = i2;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+4 ] = in_L0;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+5 ] = i3;
-
-													bufferSpace.ne.L0.ei += 6;
-
-												} else if (bufferSpace.ne.L0.isL0 & EAST) {
-
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+0 ] = i2;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+1 ] = ie_L0;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+2 ] = i3;
-
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+3 ] = ie_L0;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+4 ] = i4;
-													bufferSpace.ne.L0.elements[ bufferSpace.ne.L0.ei+5 ] = i3;
-
-													bufferSpace.ne.L0.ei += 6;
-
-												}
-											}
-
-										}
-
-										if (bufferSpace.sw) {
-
-											bufferSpace.sw.L1.elements[ bufferSpace.sw.L1.ei+0 ] = i2;
-											bufferSpace.sw.L1.elements[ bufferSpace.sw.L1.ei+1 ] = i3;
-											bufferSpace.sw.L1.elements[ bufferSpace.sw.L1.ei+2 ] = i1;
-											bufferSpace.sw.L1.ei += 3;
-
-											if (bufferSpace.sw.L0) {
-
-												if (bufferSpace.sw.L0.isL0 & SOUTH) {
-
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+0 ] = i2;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+1 ] = i3;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+2 ] = is_L0;
-
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+3 ] = is_L0;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+4 ] = i3;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+5 ] = i1;
-
-													bufferSpace.sw.L0.ei += 6;
-
-												} else if (bufferSpace.sw.L0.isL0 & WEST) {
-
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+0 ] = i2;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+1 ] = iw_L0;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+2 ] = i1;
-
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+3 ] = i2;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+4 ] = i3;
-													bufferSpace.sw.L0.elements[ bufferSpace.sw.L0.ei+5 ] = iw_L0;
-
-													bufferSpace.sw.L0.ei += 6;
-
-												}
-											}
-
-
-										}
-
-										if (bufferSpace.se) {
-
-											bufferSpace.se.L1.elements[ bufferSpace.se.L1.ei+0 ] = i1;
-											bufferSpace.se.L1.elements[ bufferSpace.se.L1.ei+1 ] = i2;
-											bufferSpace.se.L1.elements[ bufferSpace.se.L1.ei+2 ] = i4;
-											bufferSpace.se.L1.ei += 3;
-
-											if (bufferSpace.se.L0) {
-
-												if (bufferSpace.se.L0.isL0 & SOUTH) {
-
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+0 ] = i1;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+1 ] = is_L0;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+2 ] = i4;
-
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+3 ] = is_L0;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+4 ] = i2;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+5 ] = i4;
-
-													bufferSpace.se.L0.ei += 6;
-
-												} else if (bufferSpace.se.L0.isL0 & EAST) {
-
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+0 ] = i1;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+1 ] = ie_L0;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+2 ] = i4;
-
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+3 ] = i1;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+4 ] = i2;
-													bufferSpace.se.L0.elements[ bufferSpace.se.L0.ei+5 ] = ie_L0;
-
-													bufferSpace.se.L0.ei += 6;
-
-												}
-											}
-
-
-										}
-
-									} else {
-
-
-										bufferSpace.L1.elements[ bufferSpace.L1.ei+0 ] = i1;
-										bufferSpace.L1.elements[ bufferSpace.L1.ei+1 ] = i2;
-										bufferSpace.L1.elements[ bufferSpace.L1.ei+2 ] = i3;
-
-										bufferSpace.L1.elements[ bufferSpace.L1.ei+3 ] = i2;
-										bufferSpace.L1.elements[ bufferSpace.L1.ei+4 ] = i4;
-										bufferSpace.L1.elements[ bufferSpace.L1.ei+5 ] = i3;
-
-										bufferSpace.L1.ei += 6;
-
-										if (bufferSpace.L0) {
-
-											if (bufferSpace.L0.isL0 & NORTH) {
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+0 ] = i4;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+1 ] = in_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+2 ] = i2;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+3 ] = in_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+4 ] = i1;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+5 ] = i2;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+6 ] = in_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+7 ] = i3;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+8 ] = i1;
-
-											   bufferSpace.L0.ei += 9;
-
-											} else if (bufferSpace.L0.isL0 & EAST) {
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+0 ] = i3;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+1 ] = ie_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+2 ] = i4;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+3 ] = ie_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+4 ] = i3;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+5 ] = i1;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+6 ] = ie_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+7 ] = i1;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+8 ] = i2;
-
-											   bufferSpace.L0.ei += 9;
-
-											} else if (bufferSpace.L0.isL0 & SOUTH) {
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+0 ] = i4;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+1 ] = is_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+2 ] = i2;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+3 ] = is_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+4 ] = i4;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+5 ] = i3;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+6 ] = is_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+7 ] = i3;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+8 ] = i1;
-
-											   bufferSpace.L0.ei += 9;
-
-											} else if (bufferSpace.L0.isL0 & WEST) {
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+0 ] = i4;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+1 ] = iw_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+2 ] = i2;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+3 ] = iw_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+4 ] = i1;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+5 ] = i2;
-
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+6 ] = iw_L0;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+7 ] = i4;
-											   bufferSpace.L0.elements[ bufferSpace.L0.ei+8 ] = i3;
-
-											   bufferSpace.L0.ei += 9;
-
-											}
-
-										}
-
-									}
-								} else {
-									console.error('Unsure which buffer space this element is in!?');
-								}
-
+					if (xi >= Quad.lodSections && yi >= Quad.lodSections &&
+						(xi % Quad.lodSections == 0) && (yi % Quad.lodSections == 0)) {
+
+							// NOTE: parametric point (x,y) is given at index:
+							// 			(y-1)*3n + x*3 + (0,1,2)
+							// 		  = 3((y-1) + x) + (0,1,2)
+							//
+							// 		 	n is the number of sections
+						var L = Quad.lodSections,
+							n = sections+1,
+							i4 = (yi*n + xi),
+							i3 = (yi*n + (xi-L)),
+							i2 = ((yi-L)*n + xi),
+							i1 = ((yi-L)*n + (xi-L));
+							
+
+						if (i4 !== (i3+1*L) ||
+							i2 !== (i1+1*L) ||
+							i4 !== (i/3)) {
+							console.error("Error finding coordinates!");
 						}
 
+
+
+						Quad.elements[ Quad.ei+0 ] = i1;
+						Quad.elements[ Quad.ei+1 ] = i2;
+						Quad.elements[ Quad.ei+2 ] = i3;
+
+						Quad.elements[ Quad.ei+3 ] = i2;
+						Quad.elements[ Quad.ei+4 ] = i4;
+						Quad.elements[ Quad.ei+5 ] = i3;
+
+						Quad.ei += 6;
+
 					}
+
 
 					var timeEnd = (new Date()).getTime();
 					time_Elements += (timeEnd - time);
@@ -1004,6 +550,91 @@ onmessage = function (oEvent) {
 	}
 
 
+								// NOTE: parametric point (x,y) is given at index:
+								// 			(y-1)*3n + x*3 + (0,1,2)
+								// 		  = 3((y-1) + x) + (0,1,2)
+								//
+								// 		 	n is the number of sections
+
+	// Create skirts (horizontal)
+	var n = sections+1;
+	for (var y=quadY, yOff=0, yi=0; yi<=sections; yi+=sections, y+=qLen*sections, yOff+=qLen*sections){
+		var prevMeshPointI = null,
+			prevI = null;
+
+		for (var x=quadX, xOff=0, xi=0; xi<=sections; xi+=Quad.lodSections, x+=qLen, xOff+=qLen){
+
+			// find point, add a point underneath (skirt)
+			var meshPointI = (yi*n + xi);
+			points[i+0] = points[meshPointI*3+0]; // x
+			points[i+1] = points[meshPointI*3+1] - (Settings.verticalSkirtLength * Settings.scaleY_World); // y
+			points[i+2] = points[meshPointI*3+2]; // z
+
+			slopes[si+0] = slopes[meshPointI*4+0];
+			slopes[si+1] = slopes[meshPointI*4+1];
+			slopes[si+2] = slopes[meshPointI*4+2];
+			slopes[si+3] = slopes[meshPointI*4+3];
+
+			if (prevI !== null && prevMeshPointI !== null) {
+				// build quad (two tris)
+				Quad.elements[ Quad.ei+0 ] = i/3; 
+				Quad.elements[ Quad.ei+1 ] = meshPointI;
+				Quad.elements[ Quad.ei+2 ] = prevI/3;
+
+				Quad.elements[ Quad.ei+3 ] = prevI/3; 
+				Quad.elements[ Quad.ei+4 ] = meshPointI; 
+				Quad.elements[ Quad.ei+5 ] = prevMeshPointI;
+
+				Quad.ei += 6;
+			}
+
+			prevI = i;
+			prevMeshPointI = meshPointI;
+
+			i  += 3;
+			si += 4;
+		}
+	}
+
+	// Create skirts (vertical)
+	for (var x=quadX, xOff=0, xi=0; xi<=sections; xi+=sections, x+=qLen*sections, xOff+=qLen*sections){
+		var prevMeshPointI = null,
+			prevI = null;
+
+		for (var y=quadY, yOff=0, yi=0; yi<=sections; yi+=Quad.lodSections, y+=qLen, yOff+=qLen){
+
+			// find point, add a point underneath (skirt)
+			var meshPointI = (yi*n + xi);
+			points[i+0] = points[meshPointI*3+0]; // x
+			points[i+1] = points[meshPointI*3+1] - (Settings.verticalSkirtLength * Settings.scaleY_World); // y
+			points[i+2] = points[meshPointI*3+2]; // z
+
+			slopes[si+0] = slopes[meshPointI*4+0];
+			slopes[si+1] = slopes[meshPointI*4+1];
+			slopes[si+2] = slopes[meshPointI*4+2];
+			slopes[si+3] = slopes[meshPointI*4+3];
+
+			if (prevI !== null && prevMeshPointI !== null) {
+				// build quad (two tris)
+				Quad.elements[ Quad.ei+0 ] = i/3; 
+				Quad.elements[ Quad.ei+1 ] = meshPointI; 
+				Quad.elements[ Quad.ei+2 ] = prevI/3;
+
+				Quad.elements[ Quad.ei+3 ] = prevI/3; 
+				Quad.elements[ Quad.ei+4 ] = meshPointI; 
+				Quad.elements[ Quad.ei+5 ] = prevMeshPointI;
+
+				Quad.ei += 6;
+			}
+
+			prevI = i;
+			prevMeshPointI = meshPointI;
+
+			i  += 3;
+			si += 4;
+		}
+	}
+
 
 
 	var data = {
@@ -1021,20 +652,16 @@ onmessage = function (oEvent) {
 		transferObjects.push( data.heightmap );
 	}
 
-	for (var lSpacei=lodRange.min; lSpacei<=lodRange.max; ++lSpacei) {
-		var lSpace = LOD_Spaces[lSpacei],
-			lSpace_Obj = {
-				lodSections: lSpace.lodSections,
-				lodLevel: lSpacei
-			};
+		lSpace_Obj = {
+			lodSections: Quad.lodSections,
+			lodLevel: lod
+		};
 
-		for (var lSpace_Li in lSpace.elements) {
-			lSpace_Obj[ lSpace_Li ] = lSpace.elements[lSpace_Li].elementsBuffer;
-			transferObjects.push( lSpace_Obj[ lSpace_Li ] );
-		}
-		data.elements.push( lSpace_Obj );
-	}
-	
+	lSpace_Obj['inner'] = Quad.elementsBuffer;
+	transferObjects.push( lSpace_Obj['inner'] );
+
+	data.elements.push( lSpace_Obj );
+
 
 	postMessage(data, transferObjects);
 	self.close();

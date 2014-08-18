@@ -9,13 +9,14 @@
 			aspectRatio          : null,
 
 			scaleXZ              : 1.0,
-			quadTiles            : 32, // NOTE: must divide into the quad, and divide each LOD
-			scaleY_World         : 1000.0,
+			quadTiles            : 248, // NOTE: must divide into the quad, and divide each LOD
+			scaleY_World         : 1500.0,
 			scaleSteepness_World : 50*256,
 			scaleNormal_World    : 1.0,
-			useLOD               : false,
-			quadSize             : 8192,//24800,//6200,
-			viewRadius           : 30000,//200000,//30000,//20000,// 60000,
+			useLOD               : true,
+			verticalSkirtLength  : 0.3,
+			quadSize             : 24800,//6200,
+			viewRadius           : 100000,//30000,//20000,// 60000,
 			maxWorkers           : 4,
 			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
 										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
