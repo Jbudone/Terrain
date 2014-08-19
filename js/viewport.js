@@ -416,7 +416,7 @@ var 	viewport = null,
 			var lastLevel = null;
 			for (var lodLevel in LOD_Spaces) {
 				lastLevel = parseInt(lodLevel);
-				if (distance < LOD_Spaces[lodLevel]) return parseInt(lodLevel);
+				if (distance < LOD_Spaces[lodLevel].distance) return parseInt(lodLevel);
 			}
 
 			return lastLevel;
@@ -558,6 +558,18 @@ var 	viewport = null,
 			if (quad.quad.lod != quad.lod) {
 				if (!quad.quad.updating) {
 					quad.quad.updating = true;
+					quad.quad.updatingLOD = lod;
+					loadQuadQueue.push({
+						quad: quad.quad,
+						lod: quad.lod
+					});
+					setTimeout(checkWorkerQueue, 100);
+				} else if (quad.quad.worker && quad.quad.updatingLOD != lod) {
+					// Currently working on an old LOD
+					quad.quad.worker.terminate(); // Prefer the new LOD
+					delete quad.quad.worker;
+					quad.quad.resolve({myWorker: this, quad: null});
+					quad.quad.updatingLOD = lod;
 					loadQuadQueue.push({
 						quad: quad.quad,
 						lod: quad.lod
