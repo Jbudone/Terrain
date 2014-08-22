@@ -6,10 +6,17 @@
 //		- add skirts (preset vertical distance)
 //			- fix sizes (elements & points/slopes)
 //			- remove 'inner'; lodRange
-//			- dynamic sections (for each LOD)
 //
-//	> Greedy quad generation: value = (quality / cost); what if quad currently on queue/updating for lod2 and
-//		now want to fetch lod1? (switch priorities)
+//	> Greedy quad generation: value = (quality / cost)
+//	> Water
+//		- really big tessellated quad
+//		- water shader
+//		- quad follows you around
+//		- water texture
+//		- water transparency
+//		- water bumpmap, specmap
+//		- water lighting
+//		- water shader noise for waves
 //
 //
 //
@@ -395,14 +402,17 @@ var World = function(){
 			var my = this;
 			return new Promise(function GeneratedQuad(resolve, reject){
 
-					var time = (new Date()).getTime();
-					var myWorker = new Worker("js/generatorWorker.js");
+					var time = (new Date()).getTime(),
+						myWorker = new Worker("js/generatorWorker.js");
+					my.worker = myWorker;
+					my.resolve = resolve;
 
 					myWorker.addEventListener("message", function (oEvent) {
 
-						var time = (new Date()).getTime();
-						var quad = world.quadCache[oEvent.data.hash];
+						var time = (new Date()).getTime(),
+							quad = world.quadCache[oEvent.data.hash];
 						if (quad) {
+							quad.worker = null;
 							var	points    = new Float32Array(oEvent.data.points),
 								slopes    = new Float32Array(oEvent.data.slopes),
 								heightmap = (oEvent.data.heightmap? new Uint8Array(oEvent.data.heightmap) : null);
@@ -444,7 +454,7 @@ var World = function(){
 						seed1:Settings.seed1,
 						seed2:Settings.seed2,
 						scaleXZ:Settings.scaleXZ,
-						sections:Settings.quadTiles,
+						sections:LOD_Spaces[lod].tiles,
 						scaleY_World:Settings.scaleY_World,
 						scaleSteepness_World:Settings.scaleSteepness_World,
 						scaleNormal_World:Settings.scaleNormal_World,

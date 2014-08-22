@@ -12,11 +12,11 @@
 			quadTiles            : 248, // NOTE: must divide into the quad, and divide each LOD
 			scaleY_World         : 1500.0,
 			scaleSteepness_World : 50*256,
-			scaleNormal_World    : 1.0,
+			scaleNormal_World    : 2.0,
 			useLOD               : true,
-			verticalSkirtLength  : 0.3,
-			quadSize             : 24800,//6200,
-			viewRadius           : 100000,//30000,//20000,// 60000,
+			verticalSkirtLength  : 2.0,
+			quadSize             : 12400,//24800,//6200,
+			viewRadius           : 0,//100000,//30000,//20000,// 60000,
 			maxWorkers           : 4,
 			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
 										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
@@ -26,14 +26,38 @@
 	},  Objects = {
 			camera : { position : new THREE.Vector3(0,0,0), },
 			quads  : { },
+	}, Quad_LODs = {
+		6200: [248, 200, 124, 100],
+		12400: [248, 200, 124, 100],
+		24800: [248, 200, 160, 124]
 	}, LOD_Spaces = {
-		0: Math.pow(6200,2),
-		1: Math.pow(2*6200,2),
-		2: Math.pow(3*6200,2),
-		3: Math.pow(4*6200,2),
-		// 4: Math.pow(9000,2),
-		// 5: Math.pow(12000,2),
+		// Each LOD may have a dynamic number of tiles for the quad
+		// 	- tiles MUST divide into the quad size
+		// 	- tiles MUST be less than 256 (ushort)
+		// 	- tiles MUST divide the LOD level
+		//
+		// The end number of tiles in the quad is (tiles / 2^LOD)
+		0: {
+			distance: Math.pow(0*Settings.quadSize,2),
+			tiles: Quad_LODs[Settings.quadSize][0], },
+		1: {
+			distance: Math.pow(2*Settings.quadSize,2),
+			tiles: Quad_LODs[Settings.quadSize][0], },
+		2: {
+			distance: Math.pow(4*Settings.quadSize,2),
+			tiles: Quad_LODs[Settings.quadSize][0], },
+		3: {
+			distance: Math.pow(12*Settings.quadSize,2),
+			tiles: Quad_LODs[Settings.quadSize][0] },
 	};
+	if (Settings.quadSize != 6200) {
+		LOD_Spaces[4] = {
+			distance: Math.pow(16*Settings.quadSize,2),
+			tiles: Quad_LODs[Settings.quadSize][2], };
+		LOD_Spaces[5] = {
+			distance: Math.pow(18*Settings.quadSize,2),
+			tiles: Quad_LODs[Settings.quadSize][2], };
+	}
 
 
 
@@ -111,7 +135,9 @@
 				else move.multiplyScalar(100);
 
 				// Apply the movement
+				var oldY = Objects.camera.position.y;
 				Objects.camera.position.add(move);
+				Objects.camera.position.y = oldY;
 				updateCamera();
 				position.y = Objects.camera.position.z/Settings.scaleXZ;
 				position.x = Objects.camera.position.x/Settings.scaleXZ;

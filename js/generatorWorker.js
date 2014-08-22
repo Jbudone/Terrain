@@ -251,7 +251,7 @@ onmessage = function (oEvent) {
 
 
 
-		height = mountains + valley + hills + dunes + land;// - pebbles;
+		height = mountains + valley + hills + dunes;// - pebbles;
 
 		// if (height < 0) height = 0;
 		return height;
@@ -325,8 +325,7 @@ onmessage = function (oEvent) {
 		this.lodSections = lodSections;
 
 		// FIXME
-		// inner: new LOD_Buffer(2*(Math.pow(sections/lodSections - 2, 2) * 2 * 3)),
-		this.elementsBuffer = new ArrayBuffer(2*400000);
+		this.elementsBuffer = new ArrayBuffer(2*(Math.pow(sections/lodSections+2, 2) * 2 * 3));
 		this.elements = new Uint16Array(this.elementsBuffer);
 		this.ei = 0;
 
@@ -356,11 +355,8 @@ onmessage = function (oEvent) {
 		slopesBuffer    = oEvent.data.slopes;
 		heightmapBuffer = oEvent.data.heightmap;
 	} else {
-		// FIXME: this
-		// pointsBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*3); // xyz position
-		// slopesBuffer    = new ArrayBuffer(4*(Math.pow(sections + 1, 2))*4); // Normal & Steepness
-		pointsBuffer    = new ArrayBuffer(4*280000); // xyz position
-		slopesBuffer    = new ArrayBuffer(4*280000); // Normal & Steepness
+		pointsBuffer    = new ArrayBuffer(4*(Math.pow(sections + 3, 2))*3); // xyz position
+		slopesBuffer    = new ArrayBuffer(4*(Math.pow(sections + 3, 2))*4); // Normal & Steepness
 		if (includeCanvas) heightmapBuffer = new ArrayBuffer(4*(sections+1)*(sections+1));
 	}
 
