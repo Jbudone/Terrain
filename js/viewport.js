@@ -12,9 +12,15 @@ var 	viewport = null,
 				program: null,
 				vertexShader: null,
 				fragmentShader: null
+			},
+			water: {
+				program: null,
+				vertexShader: null,
+				fragmentShader: null
 			}
 	},  Buffer = {
-			skybox:null
+			skybox:null,
+			water:null
 	},  Shaders = {
 			main: {
 				'fragment':{
@@ -43,6 +49,20 @@ var 	viewport = null,
 						'aTexCoord':null,
 					}
 				}
+			},
+			water: {
+				'fragment':{
+					'type':null,
+					'id':'water-fs'
+				},
+				'vertex':{
+					'type':null,
+					'id':'water-vs',
+					'attributes':{
+						'aVertexCoord':null,
+						'aTexCoord':null,
+					}
+				}
 			}
 	},	Textures = {
 			main: [
@@ -57,6 +77,7 @@ var 	viewport = null,
 					{name: "rocky"    , src: "rocky.jpg"             , sampler: null}   ,
 					{name: "grass"    , src: "grass.jpg"             , sampler: null}   ,
 					{name: "gravel"   , src: "gravel.jpg"            , sampler: null} ] ,
+			water: [ {sampler: null, src: "water512.jpg"} ],
 			skybox: [
 
 
@@ -109,6 +130,10 @@ var 	viewport = null,
 		Shaders.skybox.fragment.type = gl.FRAGMENT_SHADER;
 		Shaders.skybox.vertex.type   = gl.VERTEX_SHADER;
 		glShader.skybox.program      = gl.createProgram();
+
+		Shaders.water.fragment.type = gl.FRAGMENT_SHADER;
+		Shaders.water.vertex.type   = gl.VERTEX_SHADER;
+		glShader.water.program      = gl.createProgram();
 
 
 		var float_texture_ext = gl.getExtension('OES_standard_derivatives');
@@ -169,6 +194,7 @@ var 	viewport = null,
 		gl.useProgram(glShader.main.program);
 		initTextures();
 
+		bufferWater();
 		bufferSkybox();
 	},
 
@@ -209,6 +235,23 @@ var 	viewport = null,
 
 			var mvUniform = gl.getUniformLocation(shader.program, "uMVMatrix");
 			gl.uniformMatrix4fv(mvUniform, false, new Float32Array( mvMatrix ));
+
+			var mvYUniform = gl.getUniformLocation(shader.program, "uMVYMatrix");
+			if (mvYUniform) {
+
+				var mvYMatrix = new THREE.Matrix4();
+				mvYMatrix.copy(Objects.camera.matrixWorld);
+				mvYMatrix.elements[12] = 0.0;
+				mvYMatrix.elements[14] = 0.0;
+				gl.uniformMatrix4fv(mvYUniform, false, new Float32Array( mvYMatrix.elements ));
+			}
+
+			var offsetUniform = gl.getUniformLocation(shader.program, "uOffset");
+			if (offsetUniform) {
+				// gl.uniform3f(offsetUniform, false, 0*Objects.camera.position.x, Objects.camera.position.z, 0*Objects.camera.position.z);
+				gl.uniform2f(offsetUniform, false, Objects.camera.position.x, Objects.camera.position.z);
+				console.log(Objects.camera.position);
+			}
 
 			var viewUniform = gl.getUniformLocation(shader.program, "viewDirection");
 			if (viewUniform) {
@@ -325,6 +368,55 @@ var 	viewport = null,
 
 
 		gl.bindTexture(target, null);
+	},
+
+	bufferWater = function(){
+
+		Objects.water = {
+			vertices: [],
+			elements: [],
+			texcoords: [],
+
+			verticesBuffer: null,
+			texcoordBuffer: null,
+			vao: null
+		};
+
+		var size = Settings.farPlane * 2;
+		Objects.water.vertices = [
+			-size, -10.0, -size,
+			size,  -10.0, -size,
+			size,  -10.0, size,
+			-size, -10.0, size
+		];
+
+		Objects.water.elements = [
+			0, 1, 2,
+			0, 2, 3
+		];
+
+		var repeats = 1000.0;
+		Objects.water.texcoords = [
+			0.0, 0.0,
+			repeats, 0.0,
+			repeats, repeats,
+			0.0,  repeats
+		];
+
+
+		gl.useProgram(glShader.water.program);
+		Objects.water.vao = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Objects.water.vao);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(Objects.water.elements), gl.STATIC_DRAW);
+
+		Objects.water.verticesBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.verticesBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Objects.water.vertices), gl.STATIC_DRAW);
+
+		Objects.water.texcoordBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.texcoordBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Objects.water.texcoords), gl.STATIC_DRAW);
+
 	},
 
 	bufferSkybox = function(){
@@ -528,6 +620,34 @@ var 	viewport = null,
 			gl.drawElements(gl.TRIANGLES, Objects.skybox.elements.length, gl.UNSIGNED_SHORT, 0);
 
 			_.each(Shaders.skybox.vertex.attributes, function(attribute, name){
+				var vertexAttribute = attribute;
+				gl.disableVertexAttribArray(vertexAttribute);
+			});
+		}
+
+		// Draw Water
+		if (Textures.water[0]) {
+			gl.useProgram(glShader.water.program);
+
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, Textures.water[0].sampler);
+			gl.uniform1i(gl.getUniformLocation(glShader.water.program, "TexSampler"), 0);
+
+			_.each(Shaders.skybox.vertex.attributes, function(attribute, name){
+				var vertexAttribute = attribute;
+				gl.enableVertexAttribArray(vertexAttribute);
+			});
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.verticesBuffer);
+			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aVertexCoord'], 3, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.texcoordBuffer);
+			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aTexCoord'], 2, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Objects.water.vao);
+			gl.drawElements(gl.TRIANGLES, Objects.water.elements.length, gl.UNSIGNED_SHORT, 0);
+
+			_.each(Shaders.water.vertex.attributes, function(attribute, name){
 				var vertexAttribute = attribute;
 				gl.disableVertexAttribArray(vertexAttribute);
 			});

@@ -15,8 +15,8 @@
 			scaleNormal_World    : 2.0,
 			useLOD               : true,
 			verticalSkirtLength  : 2.0,
-			quadSize             : 24800,//6200,
-			viewRadius           : 200000,//30000,//20000,// 60000,
+			quadSize             : 12400,//24800,//6200,
+			viewRadius           : 0,//100000,//30000,//20000,// 60000,
 			maxWorkers           : 4,
 			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
 										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
@@ -28,6 +28,7 @@
 			quads  : { },
 	}, Quad_LODs = {
 		6200: [248, 200, 124, 100],
+		12400: [248, 200, 124, 100],
 		24800: [248, 200, 160, 124]
 	}, LOD_Spaces = {
 		// Each LOD may have a dynamic number of tiles for the quad
@@ -37,24 +38,24 @@
 		//
 		// The end number of tiles in the quad is (tiles / 2^LOD)
 		0: {
-			distance: Math.pow(Settings.quadSize,2),
+			distance: Math.pow(0*Settings.quadSize,2),
 			tiles: Quad_LODs[Settings.quadSize][0], },
 		1: {
-			distance: Math.pow(3*Settings.quadSize,2),
+			distance: Math.pow(2*Settings.quadSize,2),
 			tiles: Quad_LODs[Settings.quadSize][0], },
 		2: {
-			distance: Math.pow(6*Settings.quadSize,2),
+			distance: Math.pow(4*Settings.quadSize,2),
 			tiles: Quad_LODs[Settings.quadSize][0], },
 		3: {
-			distance: Math.pow(10*Settings.quadSize,2),
+			distance: Math.pow(12*Settings.quadSize,2),
 			tiles: Quad_LODs[Settings.quadSize][0] },
 	};
 	if (Settings.quadSize != 6200) {
 		LOD_Spaces[4] = {
-			distance: Math.pow(12*Settings.quadSize,2),
+			distance: Math.pow(16*Settings.quadSize,2),
 			tiles: Quad_LODs[Settings.quadSize][2], };
 		LOD_Spaces[5] = {
-			distance: Math.pow(16*Settings.quadSize,2),
+			distance: Math.pow(18*Settings.quadSize,2),
 			tiles: Quad_LODs[Settings.quadSize][2], };
 	}
 
@@ -134,7 +135,9 @@
 				else move.multiplyScalar(100);
 
 				// Apply the movement
+				var oldY = Objects.camera.position.y;
 				Objects.camera.position.add(move);
+				Objects.camera.position.y = oldY;
 				updateCamera();
 				position.y = Objects.camera.position.z/Settings.scaleXZ;
 				position.x = Objects.camera.position.x/Settings.scaleXZ;

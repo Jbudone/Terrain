@@ -8,6 +8,15 @@
 //			- remove 'inner'; lodRange
 //
 //	> Greedy quad generation: value = (quality / cost)
+//	> Water
+//		- really big tessellated quad
+//		- water shader
+//		- quad follows you around
+//		- water texture
+//		- water transparency
+//		- water bumpmap, specmap
+//		- water lighting
+//		- water shader noise for waves
 //
 //
 //
