@@ -585,16 +585,14 @@
 			uniform vec2 uOffset;
 
 			varying vec2 texPos;
-			varying vec2 offset;
+			varying vec2 weirdYTest;
 
 			void main(void) {
-				vec4 position = uPMatrix * uVMatrix * uMVYMatrix *  vec4(aVertexCoord, 1.0);
-				// vec4 positionY = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexCoord, 1.0);
-				// position.y = positionY.y;
+				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexCoord, 1.0);
 				gl_Position = position;
-			
 
-				offset = uOffset;
+				weirdYTest = position.yz;
+			
 				texPos = aTexCoord.xy;
 			}
 		</script>
@@ -604,17 +602,15 @@
 			precision mediump float;
 			uniform sampler2D TexSampler;
 
-			varying vec2 offset;
 			varying vec2 texPos;
+			varying vec2 weirdYTest;
 
 			void main(void) {
 				vec4 tex;
 
-				// y acts as X
-				// tex = texture2D(TexSampler, offset.xz);
-				tex = vec4(abs(offset.x)*0.001, abs(offset.y)*0.001, 0.0, 1.0);
-				// tex = texture2D(TexSampler, texPos - offset*0.001);
-				// tex = texture2D(TexSampler, texPos /*- (offset.xy * 0.001).yx*/ /*- vec2(0.0, offset.x * 0.001)*/ - offset.z);// vec2(0.0, (offset.z * 0.001).x));
+				tex = texture2D(TexSampler, texPos.xy);
+				//tex.r *= weirdYTest.x;
+				//tex.b *= weirdYTest.y;
 				gl_FragColor = tex;
 			}
 		</script>

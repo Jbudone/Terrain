@@ -241,8 +241,8 @@ var 	viewport = null,
 
 				var mvYMatrix = new THREE.Matrix4();
 				mvYMatrix.copy(Objects.camera.matrixWorld);
-				mvYMatrix.elements[12] = 0.0;
-				mvYMatrix.elements[14] = 0.0;
+				// mvYMatrix.elements[12] = 0.0;
+				// mvYMatrix.elements[14] = 0.0;
 				gl.uniformMatrix4fv(mvYUniform, false, new Float32Array( mvYMatrix.elements ));
 			}
 
@@ -382,7 +382,7 @@ var 	viewport = null,
 			vao: null
 		};
 
-		var size = Settings.farPlane * 2;
+		var size = Settings.farPlane;
 		Objects.water.vertices = [
 			-size, -10.0, -size,
 			size,  -10.0, -size,
@@ -633,7 +633,7 @@ var 	viewport = null,
 			gl.bindTexture(gl.TEXTURE_2D, Textures.water[0].sampler);
 			gl.uniform1i(gl.getUniformLocation(glShader.water.program, "TexSampler"), 0);
 
-			_.each(Shaders.skybox.vertex.attributes, function(attribute, name){
+			_.each(Shaders.water.vertex.attributes, function(attribute, name){
 				var vertexAttribute = attribute;
 				gl.enableVertexAttribArray(vertexAttribute);
 			});

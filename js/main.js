@@ -15,8 +15,8 @@
 			scaleNormal_World    : 2.0,
 			useLOD               : true,
 			verticalSkirtLength  : 2.0,
-			quadSize             : 12400,//24800,//6200,
-			viewRadius           : 0,//100000,//30000,//20000,// 60000,
+			quadSize             : 6200,//12400,//24800,//6200,
+			viewRadius           : 100000,//30000,//20000,// 60000,
 			maxWorkers           : 4,
 			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
 										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
@@ -135,9 +135,7 @@
 				else move.multiplyScalar(100);
 
 				// Apply the movement
-				var oldY = Objects.camera.position.y;
 				Objects.camera.position.add(move);
-				Objects.camera.position.y = oldY;
 				updateCamera();
 				position.y = Objects.camera.position.z/Settings.scaleXZ;
 				position.x = Objects.camera.position.x/Settings.scaleXZ;
