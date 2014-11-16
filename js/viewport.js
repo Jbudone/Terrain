@@ -136,7 +136,8 @@ var 	viewport = null,
 		glShader.water.program      = gl.createProgram();
 
 
-		var float_texture_ext = gl.getExtension('OES_standard_derivatives');
+		var float_texture_ext = gl.getExtension('OES_standard_derivatives'),
+			uint_index_ext    = gl.getExtension('OES_element_index_uint');
 
 
 		// Compile, Attach and Link shaders to GL Programs
@@ -184,6 +185,8 @@ var 	viewport = null,
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);                      // Set clear color to black, fully opaque
 		gl.enable(gl.DEPTH_TEST);                               // Enable depth testing
 		gl.depthFunc(gl.LEQUAL);                                // Near things obscure far things
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		gl.enable(gl.BLEND);
 		gl.viewport(0, 0, viewportCanvas.width, viewportCanvas.height);
 
 
@@ -241,16 +244,15 @@ var 	viewport = null,
 
 				var mvYMatrix = new THREE.Matrix4();
 				mvYMatrix.copy(Objects.camera.matrixWorld);
-				// mvYMatrix.elements[12] = 0.0;
-				// mvYMatrix.elements[14] = 0.0;
+				mvYMatrix.elements[12] = 0.0;
+				mvYMatrix.elements[14] = 0.0;
 				gl.uniformMatrix4fv(mvYUniform, false, new Float32Array( mvYMatrix.elements ));
 			}
 
 			var offsetUniform = gl.getUniformLocation(shader.program, "uOffset");
 			if (offsetUniform) {
 				// gl.uniform3f(offsetUniform, false, 0*Objects.camera.position.x, Objects.camera.position.z, 0*Objects.camera.position.z);
-				gl.uniform2f(offsetUniform, false, Objects.camera.position.x, Objects.camera.position.z);
-				console.log(Objects.camera.position);
+				gl.uniform2f(offsetUniform, Objects.camera.position.x, Objects.camera.position.z);
 			}
 
 			var viewUniform = gl.getUniformLocation(shader.program, "viewDirection");
@@ -283,7 +285,7 @@ var 	viewport = null,
 		Objects.camera  = new THREE.PerspectiveCamera( Settings.fov, Settings.aspectRatio, Settings.nearPlane, Settings.farPlane );
 		camera          = Objects.camera;
 		camera.position = position;
-		camera.phi      = 0.0;
+		camera.phi      = 2.5;
 		camera.theta    = 0.0;
 		camera.lambda   = 0.0;
 	},
@@ -520,6 +522,7 @@ var 	viewport = null,
 	drawScene = function(){
 
 		// clear scene
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);      // Clear the color as well as the depth buffer.
 
 
@@ -625,34 +628,6 @@ var 	viewport = null,
 			});
 		}
 
-		// Draw Water
-		if (Textures.water[0]) {
-			gl.useProgram(glShader.water.program);
-
-			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, Textures.water[0].sampler);
-			gl.uniform1i(gl.getUniformLocation(glShader.water.program, "TexSampler"), 0);
-
-			_.each(Shaders.water.vertex.attributes, function(attribute, name){
-				var vertexAttribute = attribute;
-				gl.enableVertexAttribArray(vertexAttribute);
-			});
-
-			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.verticesBuffer);
-			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aVertexCoord'], 3, gl.FLOAT, false, 0, 0);
-
-			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.texcoordBuffer);
-			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aTexCoord'], 2, gl.FLOAT, false, 0, 0);
-
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Objects.water.vao);
-			gl.drawElements(gl.TRIANGLES, Objects.water.elements.length, gl.UNSIGNED_SHORT, 0);
-
-			_.each(Shaders.water.vertex.attributes, function(attribute, name){
-				var vertexAttribute = attribute;
-				gl.disableVertexAttribArray(vertexAttribute);
-			});
-		}
-
 
 		// Prepare textures
 		gl.useProgram(glShader.main.program);
@@ -724,7 +699,7 @@ var 	viewport = null,
 			buffer = quad.quad.elements[quad.lod].elements.inner;
 			if (!buffer.vao) continue; // VAO not bound yet (probably waiting to be buffered)
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-			gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_SHORT, 0);
+			gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_INT, 0);
 
 
 		}
@@ -734,6 +709,34 @@ var 	viewport = null,
 			gl.disableVertexAttribArray(vertexAttribute);
 		});
 
+
+		// Draw Water
+		if (Textures.water[0]) {
+			gl.useProgram(glShader.water.program);
+
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, Textures.water[0].sampler);
+			gl.uniform1i(gl.getUniformLocation(glShader.water.program, "TexSampler"), 0);
+
+			_.each(Shaders.water.vertex.attributes, function(attribute, name){
+				var vertexAttribute = attribute;
+				gl.enableVertexAttribArray(vertexAttribute);
+			});
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.verticesBuffer);
+			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aVertexCoord'], 3, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.texcoordBuffer);
+			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aTexCoord'], 2, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Objects.water.vao);
+			gl.drawElements(gl.TRIANGLES, Objects.water.elements.length, gl.UNSIGNED_SHORT, 0);
+
+			_.each(Shaders.water.vertex.attributes, function(attribute, name){
+				var vertexAttribute = attribute;
+				gl.disableVertexAttribArray(vertexAttribute);
+			});
+		}
 
 
 		setTimeout(drawScene, Settings.framerate);
@@ -786,7 +789,7 @@ var 	viewport = null,
 
 		buffer.vao = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.data), gl.STATIC_DRAW);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(buffer.data), gl.STATIC_DRAW);
 		if (Objects.quads[quad.hash].verticesBuffer) gl.deleteBuffer( Objects.quads[quad.hash].verticesBuffer );
 		Objects.quads[quad.hash].verticesBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, Objects.quads[quad.hash].verticesBuffer);

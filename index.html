@@ -39,7 +39,7 @@
 			varying float zband;
 
 			void main(void) {
-				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexPosition, 1.0); 
+				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);// * 0.1; 
 				gl_Position = position;
 
 				pos = aVertexPosition.xyz;
@@ -584,14 +584,14 @@
 			uniform mat4 uPMatrix;
 			uniform vec2 uOffset;
 
+			varying vec2 offset;
 			varying vec2 texPos;
-			varying vec2 weirdYTest;
 
 			void main(void) {
-				vec4 position = uPMatrix * uVMatrix * uMVMatrix * vec4(aVertexCoord, 1.0);
+				vec4 position = uPMatrix * uVMatrix * uMVYMatrix * vec4(aVertexCoord, 1.0);// * 0.1;
 				gl_Position = position;
 
-				weirdYTest = position.yz;
+				offset = uOffset.yx * -0.012;
 			
 				texPos = aTexCoord.xy;
 			}
@@ -602,15 +602,16 @@
 			precision mediump float;
 			uniform sampler2D TexSampler;
 
+			varying vec2 offset;
 			varying vec2 texPos;
-			varying vec2 weirdYTest;
 
 			void main(void) {
 				vec4 tex;
 
-				tex = texture2D(TexSampler, texPos.xy);
-				//tex.r *= weirdYTest.x;
-				//tex.b *= weirdYTest.y;
+				float scale = 0.4;
+				tex = texture2D(TexSampler, scale*(offset.yx + texPos.xy));
+				tex.rgb *= vec3(0.05, 0.05, 0.2);
+				tex.a = 0.9;
 				gl_FragColor = tex;
 			}
 		</script>

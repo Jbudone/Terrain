@@ -435,7 +435,7 @@ var World = function(){
 								for (var elementsName in el) {
 									if (elementsName == "lodSections" ||
 										elementsName == "lodLevel") continue;
-									elements.elements[elementsName] = {data: new Uint16Array(el[elementsName])};
+									elements.elements[elementsName] = {data: new Uint32Array(el[elementsName])};
 									elements.elements[elementsName].length = elements.elements[elementsName].data.length;
 								}
 								quad.elements[el.lodLevel] = elements;
