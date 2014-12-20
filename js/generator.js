@@ -108,6 +108,7 @@ var canvas             = document.getElementById('heightmap'),
 	generatedQuadQueue = [],
 	workersWorking     = 0,
 	quadIndex          = 0,
+	buggyWorkerTimeout = 2000,
 	checkWorkerQueue = function(){
 		if (loadQuadQueue.length && workersWorking < Settings.maxWorkers) {
 
@@ -140,15 +141,17 @@ var canvas             = document.getElementById('heightmap'),
 					generatedQuadQueue.push(obj);
 					console.log("["+quad.index+"] GENERATED QUAD");
 				} else if (quad) {
+					console.error("didn't work..");
 					quad.updating = false;
 					--workersWorking;
 				} else {
+					console.error("didn't work...");
 					--workersWorking;
 				}
 				clearedThisQuad = true;
 			});
 
-			setTimeout(function(){ if (!clearedThisQuad){ quad.updating=false; console.error("Quad was not cleared.."); } }, 8000); // TODO: remove this bug
+			//setTimeout(function(){ if (!clearedThisQuad){ quad.updating=false; console.error("Quad was not cleared.."); buggyWorkerTimeout = 8000; } }, buggyWorkerTimeout); // TODO: remove this bug
 			checkWorkerQueue();
 		}
 	};

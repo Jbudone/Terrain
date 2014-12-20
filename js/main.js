@@ -9,14 +9,14 @@
 			aspectRatio          : null,
 
 			scaleXZ              : 1.0,
-			quadTiles            : 248,//496,//248, // NOTE: must divide into the quad, and divide each LOD
+			quadTiles            : 496,//248, // NOTE: must divide into the quad, and divide each LOD
 			scaleY_World         : 1500.0,
 			scaleSteepness_World : 50*256,
 			scaleNormal_World    : 2.0,
 			useLOD               : true,
 			verticalSkirtLength  : 2.0,
-			quadSize             : 99200,//49600,//12400,//24800,//6200,
-			viewRadius           : 100000,//40000,//20000,//100000,//30000,//20000,// 60000,
+			quadSize             : 49600,//99200,//49600,//12400,//24800,//6200, // FIXME: 99200 is too big and takes FAR too long, regardless of 
+			viewRadius           : 40000,//100000,//40000,//20000,//100000,//30000,//20000,// 60000,
 			maxWorkers           : 4,
 			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
 										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
@@ -64,9 +64,7 @@
 
 
 	$(document).ready(function(){
-		setTimeout(function(){
 		generateImage();
-		}, 5000);
 		initViewport();
 		drawScene();
 
