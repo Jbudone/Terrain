@@ -2,21 +2,21 @@
 	var Settings = {
 			framerate            : 100,
 			fov                  : 65,
-			nearPlane            : 1,
-			farPlane             : 400000.0,
+			nearPlane            : 20.0,
+			farPlane             : 40000.0,
 			canvasWidth          : null,
 			canvasHeight         : null,
 			aspectRatio          : null,
 
 			scaleXZ              : 1.0,
-			quadTiles            : 248, // NOTE: must divide into the quad, and divide each LOD
+			quadTiles            : 496,//248, // NOTE: must divide into the quad, and divide each LOD
 			scaleY_World         : 1500.0,
 			scaleSteepness_World : 50*256,
 			scaleNormal_World    : 2.0,
 			useLOD               : true,
 			verticalSkirtLength  : 2.0,
-			quadSize             : 12400,//24800,//6200,
-			viewRadius           : 0,//100000,//30000,//20000,// 60000,
+			quadSize             : 49600,//99200,//49600,//12400,//24800,//6200, // FIXME: 99200 is too big and takes FAR too long, regardless of 
+			viewRadius           : 40000,//100000,//40000,//20000,//100000,//30000,//20000,// 60000,
 			maxWorkers           : 4,
 			includeCanvas        : false, // draw heightmap canvas? NOTE: HUGELY INEFFICIENT!
 										// WARNING: MAKE SURE TO MAKE VIEW RADIUS VERY SMALL FOR CANVAS!!!  (~10000)
@@ -29,7 +29,9 @@
 	}, Quad_LODs = {
 		6200: [248, 200, 124, 100],
 		12400: [248, 200, 124, 100],
-		24800: [248, 200, 160, 124]
+		24800: [248, 200, 160, 124],
+		49600: [496, 248, 200, 160],
+		99200: [992, 496, 248, 200]  // Too stressful on my GTX 550 Ti
 	}, LOD_Spaces = {
 		// Each LOD may have a dynamic number of tiles for the quad
 		// 	- tiles MUST divide into the quad size
@@ -132,12 +134,10 @@
 				// Are we running?
 				move.x *= -1;
 				if ( movement & MOVE_RUNNING ) move.multiplyScalar(1000);
-				else move.multiplyScalar(100);
+				else move.multiplyScalar(10);
 
 				// Apply the movement
-				var oldY = Objects.camera.position.y;
 				Objects.camera.position.add(move);
-				Objects.camera.position.y = oldY;
 				updateCamera();
 				position.y = Objects.camera.position.z/Settings.scaleXZ;
 				position.x = Objects.camera.position.x/Settings.scaleXZ;
@@ -230,6 +230,7 @@
 
 		viewportCanvas.addEventListener('mousedown', function MouseDownEvent(evt){
 
+			console.log("Mouse down! " + evt.button);
 			var bounds  = viewportCanvas.getBoundingClientRect(),
 				mouseY  = evt.clientY - bounds.top,
 				mouseX  = evt.clientX - bounds.left;

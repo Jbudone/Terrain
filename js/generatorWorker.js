@@ -325,8 +325,8 @@ onmessage = function (oEvent) {
 		this.lodSections = lodSections;
 
 		// FIXME
-		this.elementsBuffer = new ArrayBuffer(2*(Math.pow(sections/lodSections+2, 2) * 2 * 3));
-		this.elements = new Uint16Array(this.elementsBuffer);
+		this.elementsBuffer = new ArrayBuffer(2*(Math.pow(sections/lodSections+2, 2) * 4 * 3));
+		this.elements = new Uint32Array(this.elementsBuffer);
 		this.ei = 0;
 
 	};

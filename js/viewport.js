@@ -77,7 +77,10 @@ var 	viewport = null,
 					{name: "rocky"    , src: "rocky.jpg"             , sampler: null}   ,
 					{name: "grass"    , src: "grass.jpg"             , sampler: null}   ,
 					{name: "gravel"   , src: "gravel.jpg"            , sampler: null} ] ,
-			water: [ {sampler: null, src: "water512.jpg"} ],
+			water: [
+					{name: "TexSampler", src: "water512.jpg", sampler: null},
+					{name: "BumpSampler", src: "water_normalmap.jpg", sampler: null},
+					{name: "DuDvSampler", src: "water_dudv.jpg", sampler: null} ],
 			skybox: [
 
 						{ sampler: null, options: { skip: false }, cubemap: [
@@ -104,6 +107,9 @@ var 	viewport = null,
 	};
 
 
+	var rttFramebuffer = null,
+		rttTexture = null,
+		renderbuffer = null;
 
 	var initViewport = function(){
 
@@ -136,7 +142,8 @@ var 	viewport = null,
 		glShader.water.program      = gl.createProgram();
 
 
-		var float_texture_ext = gl.getExtension('OES_standard_derivatives');
+		var float_texture_ext = gl.getExtension('OES_standard_derivatives'),
+			uint_index_ext    = gl.getExtension('OES_element_index_uint');   // Allow uint based elements (bigger terrain quads)
 
 
 		// Compile, Attach and Link shaders to GL Programs
@@ -184,6 +191,8 @@ var 	viewport = null,
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);                      // Set clear color to black, fully opaque
 		gl.enable(gl.DEPTH_TEST);                               // Enable depth testing
 		gl.depthFunc(gl.LEQUAL);                                // Near things obscure far things
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		gl.enable(gl.BLEND);
 		gl.viewport(0, 0, viewportCanvas.width, viewportCanvas.height);
 
 
@@ -196,6 +205,43 @@ var 	viewport = null,
 
 		bufferWater();
 		bufferSkybox();
+
+
+
+
+		//=============================================================
+		// FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME 
+		//
+		// Rendering to texture for water
+		rttFramebuffer = gl.createFramebuffer();
+		gl.bindFramebuffer(gl.FRAMEBUFFER, rttFramebuffer);
+		rttFramebuffer.width = 512;
+		rttFramebuffer.height = 512;
+
+		rttTexture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, rttTexture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+		gl.generateMipmap(gl.TEXTURE_2D);
+
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, rttFramebuffer.width, rttFramebuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+		renderbuffer = gl.createRenderbuffer();
+		gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, rttFramebuffer.width, rttFramebuffer.height);
+
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rttTexture, 0);
+		gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+		// FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME 
+		//=============================================================
+
+
+
 	},
 
 	updateCamera = function(){
@@ -249,8 +295,7 @@ var 	viewport = null,
 			var offsetUniform = gl.getUniformLocation(shader.program, "uOffset");
 			if (offsetUniform) {
 				// gl.uniform3f(offsetUniform, false, 0*Objects.camera.position.x, Objects.camera.position.z, 0*Objects.camera.position.z);
-				gl.uniform2f(offsetUniform, false, Objects.camera.position.x, Objects.camera.position.z);
-				console.log(Objects.camera.position);
+				gl.uniform3f(offsetUniform, Objects.camera.position.x, Objects.camera.position.z, Objects.camera.position.y);
 			}
 
 			var viewUniform = gl.getUniformLocation(shader.program, "viewDirection");
@@ -283,7 +328,7 @@ var 	viewport = null,
 		Objects.camera  = new THREE.PerspectiveCamera( Settings.fov, Settings.aspectRatio, Settings.nearPlane, Settings.farPlane );
 		camera          = Objects.camera;
 		camera.position = position;
-		camera.phi      = 0.0;
+		camera.phi      = 2.5;
 		camera.theta    = 0.0;
 		camera.lambda   = 0.0;
 	},
@@ -382,7 +427,7 @@ var 	viewport = null,
 			vao: null
 		};
 
-		var size = Settings.farPlane * 2;
+		var size = Settings.farPlane;
 		Objects.water.vertices = [
 			-size, -10.0, -size,
 			size,  -10.0, -size,
@@ -520,6 +565,7 @@ var 	viewport = null,
 	drawScene = function(){
 
 		// clear scene
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);      // Clear the color as well as the depth buffer.
 
 
@@ -625,34 +671,6 @@ var 	viewport = null,
 			});
 		}
 
-		// Draw Water
-		if (Textures.water[0]) {
-			gl.useProgram(glShader.water.program);
-
-			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, Textures.water[0].sampler);
-			gl.uniform1i(gl.getUniformLocation(glShader.water.program, "TexSampler"), 0);
-
-			_.each(Shaders.skybox.vertex.attributes, function(attribute, name){
-				var vertexAttribute = attribute;
-				gl.enableVertexAttribArray(vertexAttribute);
-			});
-
-			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.verticesBuffer);
-			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aVertexCoord'], 3, gl.FLOAT, false, 0, 0);
-
-			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.texcoordBuffer);
-			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aTexCoord'], 2, gl.FLOAT, false, 0, 0);
-
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Objects.water.vao);
-			gl.drawElements(gl.TRIANGLES, Objects.water.elements.length, gl.UNSIGNED_SHORT, 0);
-
-			_.each(Shaders.water.vertex.attributes, function(attribute, name){
-				var vertexAttribute = attribute;
-				gl.disableVertexAttribArray(vertexAttribute);
-			});
-		}
-
 
 		// Prepare textures
 		gl.useProgram(glShader.main.program);
@@ -724,16 +742,131 @@ var 	viewport = null,
 			buffer = quad.quad.elements[quad.lod].elements.inner;
 			if (!buffer.vao) continue; // VAO not bound yet (probably waiting to be buffered)
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-			gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_SHORT, 0);
+			gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_INT, 0);
 
 
 		}
+
+		//=============================================================
+		// FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME 
+		//
+		// Rendering to texture for water
+		gl.bindFramebuffer(gl.FRAMEBUFFER, rttFramebuffer);
+
+		var i=0;
+		for (var quadHash in drawQueue) {
+
+			var quad = drawQueue[quadHash];
+			if (!quad.quad.neighbours) continue; // Hasn't been deleted yet
+
+
+			// Do we have this LOD loaded?
+			if (quad.quad.lod != quad.lod) {
+				if (!quad.quad.updating) {
+					quad.quad.updating = true;
+					quad.quad.updatingLOD = lod;
+					loadQuadQueue.push({
+						quad: quad.quad,
+						lod: quad.lod
+					});
+					setTimeout(checkWorkerQueue, 100);
+				} else if (quad.quad.worker && quad.quad.updatingLOD != lod) {
+					// Currently working on an old LOD
+					quad.quad.worker.terminate(); // Prefer the new LOD
+					delete quad.quad.worker;
+					quad.quad.resolve({myWorker: this, quad: null});
+					quad.quad.updatingLOD = lod;
+					loadQuadQueue.push({
+						quad: quad.quad,
+						lod: quad.lod
+					});
+					setTimeout(checkWorkerQueue, 100);
+				}
+				quad.lod = quad.quad.lod;
+			}
+
+			var colorUniform = gl.getUniformLocation(glShader.main.program, "uColor");
+			gl.uniform3fv(colorUniform, new Float32Array( colors[quad.lod] ));
+			i++;
+
+
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, quad.quad.slopesBuffer);
+			gl.vertexAttribPointer(Shaders.main.vertex.attributes['aVertexSlope'], 4, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, quad.quad.verticesBuffer);
+			gl.vertexAttribPointer(Shaders.main.vertex.attributes['aVertexPosition'], 3, gl.FLOAT, false, 0, 0);
+
+
+
+
+			var buffer = null;
+
+			// Draw Inner part of quad
+			if (quad.quad.lod == undefined) continue; // Not yet set
+			if (quad.quad.elements[quad.lod] === undefined) {
+				console.error("Bad LOD picked");
+			}
+			buffer = quad.quad.elements[quad.lod].elements.inner;
+			if (!buffer.vao) continue; // VAO not bound yet (probably waiting to be buffered)
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
+			gl.drawElements(gl.TRIANGLES, buffer.length, gl.UNSIGNED_INT, 0);
+
+
+		}
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+		// FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME 
+		//=============================================================
+
+
+
 
 		_.each(Shaders.main.vertex.attributes, function(attribute, name){
 			var vertexAttribute = attribute;
 			gl.disableVertexAttribArray(vertexAttribute);
 		});
 
+
+		// Draw Water
+		if (Textures.water[0]) {
+			gl.useProgram(glShader.water.program);
+
+			// Prepare textures
+			for (var i=0; i<Textures.water.length; ++i) {
+				gl.activeTexture(gl.TEXTURE0+i);
+				gl.bindTexture(gl.TEXTURE_2D, Textures.water[i].sampler);
+				gl.uniform1i(gl.getUniformLocation(glShader.water.program, Textures.water[i].name), i);
+			}
+
+			//=====================================================================
+			//  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME FIXME 
+			gl.activeTexture(gl.TEXTURE0+3);
+			gl.bindTexture(gl.TEXTURE_2D, rttTexture);
+			gl.uniform1i(gl.getUniformLocation(glShader.water.program, "rtt"), 3);
+			//  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME  FIXME FIXME 
+			//=====================================================================
+
+			_.each(Shaders.water.vertex.attributes, function(attribute, name){
+				var vertexAttribute = attribute;
+				gl.enableVertexAttribArray(vertexAttribute);
+			});
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.verticesBuffer);
+			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aVertexCoord'], 3, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, Objects.water.texcoordBuffer);
+			gl.vertexAttribPointer(Shaders.water.vertex.attributes['aTexCoord'], 2, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Objects.water.vao);
+			gl.drawElements(gl.TRIANGLES, Objects.water.elements.length, gl.UNSIGNED_SHORT, 0);
+
+			_.each(Shaders.water.vertex.attributes, function(attribute, name){
+				var vertexAttribute = attribute;
+				gl.disableVertexAttribArray(vertexAttribute);
+			});
+		}
 
 
 		setTimeout(drawScene, Settings.framerate);
@@ -786,7 +919,7 @@ var 	viewport = null,
 
 		buffer.vao = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer.vao);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(buffer.data), gl.STATIC_DRAW);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(buffer.data), gl.STATIC_DRAW);
 		if (Objects.quads[quad.hash].verticesBuffer) gl.deleteBuffer( Objects.quads[quad.hash].verticesBuffer );
 		Objects.quads[quad.hash].verticesBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, Objects.quads[quad.hash].verticesBuffer);
