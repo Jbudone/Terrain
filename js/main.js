@@ -299,30 +299,34 @@
 		document.addEventListener('keydown', function KeyDownEvent(evt){
 			
 				   if (evt.keyCode === 87) {
+				UI.viewport.isMoving |= MOVE_FORWARD;
+			} else if (evt.keyCode === 83) {
 				UI.viewport.isMoving |= MOVE_BACKWARD;
 			} else if (evt.keyCode === 65) {
 				UI.viewport.isMoving |= MOVE_LEFT;
 			} else if (evt.keyCode === 68) {
 				UI.viewport.isMoving |= MOVE_RIGHT;
-			} else if (evt.keyCode === 83) {
-				UI.viewport.isMoving |= MOVE_UP;
 			} else if (evt.keyCode === 16) {
 				UI.viewport.isMoving |= MOVE_RUNNING;
+			} else if (evt.keyCode === 32) {
+				UI.viewport.isMoving |= MOVE_UP;
 			}
 		});
 
 		document.addEventListener('keyup', function KeyUpEvent(evt){
 			
 				   if (evt.keyCode === 87) {
+				UI.viewport.isMoving &= ~MOVE_FORWARD;
+			} else if (evt.keyCode === 83) {
 				UI.viewport.isMoving &= ~MOVE_BACKWARD;
 			} else if (evt.keyCode === 65) {
 				UI.viewport.isMoving &= ~MOVE_LEFT;
 			} else if (evt.keyCode === 68) {
 				UI.viewport.isMoving &= ~MOVE_RIGHT;
-			} else if (evt.keyCode === 83) {
-				UI.viewport.isMoving &= ~MOVE_UP;
 			} else if (evt.keyCode === 16) {
 				UI.viewport.isMoving &= ~MOVE_RUNNING;
+			} else if (evt.keyCode === 32) {
+				UI.viewport.isMoving &= ~MOVE_UP;
 			}
 		});
 

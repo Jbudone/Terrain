@@ -197,7 +197,7 @@ var 	viewport = null,
 
 
 		// Setup Camera
-		createCamera(new THREE.Vector3(0.0, -150.0, 0.0));
+		createCamera(new THREE.Vector3(0.0, -750.0, 0.0));
 		updateCamera();
 
 		gl.useProgram(glShader.main.program);
