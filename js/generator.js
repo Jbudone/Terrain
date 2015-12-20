@@ -91,13 +91,18 @@
 // 	> check performance & timeline
 // 	> loadQuadQueue check that quad is still needed for updating (distance, in view? in requested LOD range?)
 // 	> BUG: some noise returns outside of range values
-// 	> BUG: tri's drawn double sided
 // 	> BUG: voronoi noise with negative numbers
 // 	> BUG: voronoi F2 noise
 // 	> BUG: when moving really fast along the canvas, sometimes missing quads occur 
 // 	> BUG: quads being unloaded twice
 // 	> BUG: quad edges show up as west(right), east(left)
-// 	> BUG: glsl flickering effect along band-lines
+//
+// 	> BUG: glsl flickering effect along band-lines -- NOTE:
+// 			http://stackoverflow.com/questions/14765517/how-to-eliminate-texture-seams-from-mipmapping 
+// 			problem is solved via. dFdX/dFdY and textureGrad; however textureGrad isn't out for webgl yet
+// 			The best approach might be to wait until webgl 2.0 comes out (based off ES3) which hopefully
+// 			provides textureGrad  (side note: the issue is due to mipmapping across non-uniform control flow)
+//			https://www.opengl.org/wiki/Sampler_(GLSL)#Non-uniform_flow_control
 
 var canvas             = document.getElementById('heightmap'),
 	ctx                = canvas.getContext('2d'),
