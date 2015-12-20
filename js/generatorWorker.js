@@ -80,7 +80,11 @@ onmessage = function (oEvent) {
 		mountains -= 64 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
 		mountains /= 12;
 		mountains -= 1;
+<<<<<<< HEAD
+		mountains = Noise.flatten( mountains, 2.5, -1 );
+=======
 		mountains = Noise.flatten( mountains, 3.5, -1 );
+>>>>>>> a369d7edcb08e71e6dd5544873b2f942794eace6
 
 		// Add Ridge-lines
 		// var ridges = Math.abs(voronoi.noise(point.x*0.0002, point.y*0.0002).y);
@@ -156,6 +160,28 @@ onmessage = function (oEvent) {
 		// }
 		
 		// return restriction;
+
+
+
+		/////
+		//
+		//			WATER
+		//
+		/////
+
+
+		var water = 0;
+		// if (mountains <= 0) {
+		// 	water += 16 *  Math.abs( simplex.noise(point.x * 0.00002, point.y * 0.00002) );
+		// 	water += 32 *  Math.abs( simplex.noise(point.x * 0.00001, point.y * 0.00001) );
+		// 	water += 64 *  Math.abs( simplex.noise(point.x * 0.000005, point.y * 0.000005) );
+		// 	water *= -1;
+
+		// 	// Restrict Water Beds
+		// 	water += 32 *  Math.abs( simplex.noise(point.x * 0.00002 + 1000, point.y * 0.00002 + 1000) );
+		// 	water += 64 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
+		// 	if (water > 0) water = 0;
+		// }
 
 
 
