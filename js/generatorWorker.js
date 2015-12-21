@@ -80,11 +80,7 @@ onmessage = function (oEvent) {
 		mountains -= 64 *  Math.abs( simplex.noise(point.x * 0.00001 + 1000, point.y * 0.00001 + 1000) );
 		mountains /= 12;
 		mountains -= 1;
-<<<<<<< HEAD
 		mountains = Noise.flatten( mountains, 2.5, -1 );
-=======
-		mountains = Noise.flatten( mountains, 3.5, -1 );
->>>>>>> a369d7edcb08e71e6dd5544873b2f942794eace6
 
 		// Add Ridge-lines
 		// var ridges = Math.abs(voronoi.noise(point.x*0.0002, point.y*0.0002).y);

@@ -24,7 +24,7 @@
 			seed1                : 280,
 			seed2                : 289,
 
-			waterHeight          : 600.0,
+			waterHeight          : 1600.0,
 			waterColumns         : 1,
 	},  Objects = {
 			camera : { position : new THREE.Vector3(0,0,0), },
@@ -136,8 +136,8 @@
 
 				// Are we running?
 				move.x *= -1;
-				if ( movement & MOVE_RUNNING ) move.multiplyScalar(100);
-				else move.multiplyScalar(10);
+				if ( movement & MOVE_RUNNING ) move.multiplyScalar(1000);
+				else move.multiplyScalar(100);
 
 				// Apply the movement
 				Objects.camera.position.add(move);
